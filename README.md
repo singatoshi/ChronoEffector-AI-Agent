@@ -1,9 +1,5 @@
 # ChronoEffector AI Agent Orchestrator Framework 🌟
 
-<p align="center">
-  <img src="docs/logo.png" alt="ChronoEffector Logo" width="200"/>
-</p>
-
 ## 🚀 Overview
 
 ChronoEffector is a cutting-edge AI Agent Orchestrator Framework designed for building sophisticated, context-aware AI applications. It excels at managing multiple AI agents, maintaining conversation context across agent switches, and providing seamless integration with various AI models and data sources.
