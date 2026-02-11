@@ -1,0 +1,23 @@
+{
+  "name": "@basileus/agent",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "generate-wallet": "tsx src/generate-wallet.ts"
+  },
+  "dependencies": {
+    "@blockrun/llm": "^0.3.0",
+    "@coinbase/agentkit": "^0.10.4",
+    "dotenv": "^16.4.7",
+    "viem": "^2.23.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
