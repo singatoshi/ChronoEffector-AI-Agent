@@ -30,7 +30,8 @@ COMMUNITY_FLOW_PERCENTAGE = Decimal("0.2")
 PATH_EXECUTIONS_LIST = "/about/executions/list"
 PATH_INSTANCE_NOTIFY = "/control/allocation/notify"
 
-MIN_ALEPH_BALANCE = Decimal("1")
+ALEPH_DECIMALS = 18
+MIN_ALEPH_BALANCE = Decimal(10**ALEPH_DECIMALS)  # 1 ALEPH in wei
 
 
 @dataclass
@@ -48,9 +49,9 @@ DEFAULT_CRN = CRNInfo(
 
 
 def get_aleph_account(private_key: str) -> ETHAccount:
-    """Create ETHAccount from hex private key."""
+    """Create ETHAccount from hex private key on Base chain."""
     key_bytes = bytes.fromhex(private_key.removeprefix("0x"))
-    return ETHAccount(key_bytes)
+    return ETHAccount(key_bytes, chain=Chain.BASE)
 
 
 def get_user_ssh_pubkey() -> str | None:
@@ -211,10 +212,11 @@ async def deploy_instance(
     crn = DEFAULT_CRN
 
     # Check ALEPH balance
-    balance = account.get_token_balance()
-    if balance < MIN_ALEPH_BALANCE:
+    balance_raw = account.get_token_balance()
+    balance_aleph = balance_raw / Decimal(10**ALEPH_DECIMALS)
+    if balance_raw < MIN_ALEPH_BALANCE:
         raise ValueError(
-            f"ALEPH balance is {balance}, need at least {MIN_ALEPH_BALANCE}. "
+            f"ALEPH balance is {balance_aleph:.4f}, need at least 1. "
             f"Fund {account.get_address()} with ALEPH tokens on Base."
         )
 
