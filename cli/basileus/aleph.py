@@ -198,7 +198,7 @@ async def create_instance(
     async with AuthenticatedAlephHttpClient(
         account=account, api_server=ALEPH_API_URL
     ) as client:
-        rootfs = settings.UBUNTU_24_QEMU_ROOTFS_ID
+        rootfs = settings.DEBIAN_12_QEMU_ROOTFS_ID
         rootfs_message: StoreMessage = await client.get_message(
             item_hash=rootfs, message_type=StoreMessage
         )

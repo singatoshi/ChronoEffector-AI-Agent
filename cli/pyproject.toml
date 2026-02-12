@@ -16,10 +16,13 @@ python-dotenv = "^1.0.1"
 eth-account = "^0.13.0"
 web3 = "^7.0.0"
 aleph-sdk-python = "^2.3.0"
+paramiko = "^3.5.1"
+pathspec = "^0.12.1"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.9.0"
 mypy = "^1.14.0"
+types-paramiko = "^4.0.0.20250822"
 
 [build-system]
 requires = ["poetry-core"]

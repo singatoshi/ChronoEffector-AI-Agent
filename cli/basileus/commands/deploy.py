@@ -10,6 +10,17 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.status import Status
 
+import paramiko
+
+from basileus.ssh import (
+    configure_service,
+    deploy_code,
+    install_deps,
+    install_node,
+    upload_agent,
+    verify_service,
+    wait_for_ssh,
+)
 from basileus.aleph import (
     DEFAULT_CRN,
     check_aleph_balance,
@@ -30,18 +41,28 @@ from basileus.wallet import generate_wallet, load_existing_wallet
 console = Console()
 
 
+def _fail(label: str, error: Exception) -> None:
+    """Print a red X with error message and exit."""
+    console.print(f"  [red]\u2718[/red] {label}")
+    console.print(f"    [red]{error}[/red]")
+    raise typer.Exit(1)
+
+
 async def _run_step(
     label: str, fn: Callable[[], Any] | None = None, mock_duration: float = 2.0
 ) -> Any:
     """Run a deployment step with spinner, then show checkmark. Returns fn result if provided."""
-    with Status(f"{label}...", console=console, spinner="dots"):
-        if fn is not None:
-            result = await fn()
-        else:
-            await asyncio.sleep(mock_duration)
-            result = None
-    console.print(f"  [green]\u2714[/green] {label}")
-    return result
+    try:
+        with Status(f"{label}...", console=console, spinner="dots"):
+            if fn is not None:
+                result = await fn()
+            else:
+                await asyncio.sleep(mock_duration)
+                result = None
+        console.print(f"  [green]\u2714[/green] {label}")
+        return result
+    except Exception as e:
+        _fail(label, e)
 
 
 async def deploy_command(
@@ -71,165 +92,236 @@ async def deploy_command(
     console.rule("[bold blue]Basileus Agent Deployment")
     rprint()
 
-    # Step 1: Wallet
-    rprint("[bold]Step 1:[/bold] Setting up Base wallet...")
-    existing = load_existing_wallet(path)
-    if existing:
-        address, private_key = existing
-        rprint(f"  [green]Using existing wallet:[/green] {address}")
-        env_vars = None
-    else:
-        address, private_key = generate_wallet()
-        rprint(f"  [green]Wallet generated:[/green] {address}")
-        env_vars = {
-            "BASE_CHAIN_WALLET_KEY": private_key,
-            "NETWORK": "base",
-            "CYCLE_INTERVAL_MS": "60000",
-            "LLM_MODEL": "anthropic/claude-sonnet-4",
-        }
-    rprint()
+    step = 0
+    ssh_client: paramiko.SSHClient | None = None
 
-    # Step 2: Write .env.prod (only if new wallet)
-    if env_vars is not None:
-        rprint("[bold]Step 2:[/bold] Configuring agent environment...")
-        env_content = "\n".join(f"{k}={v}" for k, v in env_vars.items()) + "\n"
-        os.makedirs(path, exist_ok=True)
-        with open(env_path, "w") as f:
-            f.write(env_content)
-        rprint(f"  [green]Saved to {env_path}[/green]")
+    try:
+        # Wallet
+        step += 1
+        rprint(f"[bold]Step {step}:[/bold] Setting up Base wallet...")
+        try:
+            existing = load_existing_wallet(path)
+            if existing:
+                address, private_key = existing
+                rprint(f"  [green]Using existing wallet:[/green] {address}")
+                env_vars = None
+            else:
+                address, private_key = generate_wallet()
+                rprint(f"  [green]Wallet generated:[/green] {address}")
+                env_vars = {
+                    "BASE_CHAIN_WALLET_KEY": private_key,
+                    "NETWORK": "base",
+                    "CYCLE_INTERVAL_MS": "60000",
+                    "LLM_MODEL": "anthropic/claude-sonnet-4",
+                }
+        except Exception as e:
+            _fail("Setting up Base wallet", e)
         rprint()
 
-    # Check for existing Aleph resources
-    account = get_aleph_account(private_key)
-    crn = DEFAULT_CRN
+        # Write .env.prod (only if new wallet)
+        if env_vars is not None:
+            step += 1
+            rprint(f"[bold]Step {step}:[/bold] Configuring agent environment...")
+            try:
+                env_content = "\n".join(f"{k}={v}" for k, v in env_vars.items()) + "\n"
+                os.makedirs(path, exist_ok=True)
+                with open(env_path, "w") as f:
+                    f.write(env_content)
+                rprint(f"  [green]Saved to {env_path}[/green]")
+            except Exception as e:
+                _fail("Configuring agent environment", e)
+            rprint()
 
-    resources = await _run_step(
-        "Checking for existing Aleph resources",
-        fn=lambda: check_existing_resources(account, crn),
-    )
+        # Check for existing Aleph resources
+        account = get_aleph_account(private_key)
+        crn = DEFAULT_CRN
 
-    if resources.has_any:
-        details = []
-        if resources.instance_hashes:
-            details.append(f"{len(resources.instance_hashes)} instance(s)")
-        if resources.has_operator_flow:
-            details.append("operator flow")
-        if resources.has_community_flow:
-            details.append("community flow")
-
-        rprint(f"  [yellow]Found existing resources: {', '.join(details)}[/yellow]")
-        delete = typer.confirm(
-            "  Delete existing resources and proceed?",
-            default=True,
+        resources = await _run_step(
+            "Checking for existing Aleph resources",
+            fn=lambda: check_existing_resources(account, crn),
         )
-        if not delete:
-            rprint(
-                "  [red]Cannot proceed with existing resources. Use a different wallet.[/red]"
+
+        if resources.has_any:
+            details = []
+            if resources.instance_hashes:
+                details.append(f"{len(resources.instance_hashes)} instance(s)")
+            if resources.has_operator_flow:
+                details.append("operator flow")
+            if resources.has_community_flow:
+                details.append("community flow")
+
+            rprint(f"  [yellow]Found existing resources: {', '.join(details)}[/yellow]")
+            delete = typer.confirm(
+                "  Delete existing resources and proceed?",
+                default=True,
             )
-            raise typer.Exit(1)
+            if not delete:
+                rprint(
+                    "  [red]Cannot proceed with existing resources. Use a different wallet.[/red]"
+                )
+                raise typer.Exit(1)
+
+            await _run_step(
+                "Deleting existing resources",
+                fn=lambda: delete_existing_resources(account, resources, crn),
+            )
+        rprint()
+
+        # Fund wallet
+        step += 1
+        rprint(f"[bold]Step {step}:[/bold] Fund your agent wallet")
+        rprint()
+        rprint(
+            Panel(
+                f"[bold]Send USDC (Base) to:[/bold]\n\n"
+                f"  [cyan]{address}[/cyan]\n\n"
+                f"This USDC will be the agent's starting funds for:\n"
+                f"  - AI inference costs (BlockRun x402)\n"
+                f"  - Prediction market trading (Limitless)\n"
+                f"  - Compute costs (Aleph Cloud)\n\n"
+                f"[dim]Minimum required: {min_usdc} USDC[/dim]",
+                title="[bold yellow]Fund Agent Wallet[/bold yellow]",
+                border_style="yellow",
+            )
+        )
+        rprint()
+
+        balance = wait_for_usdc_funding(address, min_amount=min_usdc)
+        rprint(f"  [green]Received {balance:.2f} USDC[/green]")
+        rprint()
+
+        # Create Aleph Cloud instance
+        step += 1
+        rprint(f"[bold]Step {step}:[/bold] Create Aleph Cloud instance...")
+        rprint()
+
+        # Resolve SSH pubkey
+        if ssh_pubkey_path is not None:
+            ssh_pubkey = ssh_pubkey_path.expanduser().read_text().strip()
+        else:
+            ssh_pubkey = get_user_ssh_pubkey()
+
+        # Skip swap — assume ALEPH tokens already available
+        console.print("  [dim]Skipping ALEPH swap (assuming tokens available)[/dim]")
+
+        try:
+            aleph_balance = check_aleph_balance(account)
+            console.print("  [green]\u2714[/green] Checked ALEPH balance")
+            rprint(f"  [dim]ALEPH balance: {aleph_balance:.4f}[/dim]")
+        except Exception as e:
+            _fail("Checking ALEPH balance", e)
+
+        instance_msg = await _run_step(
+            "Creating Aleph instance message",
+            fn=lambda: create_instance(account, crn, ssh_pubkey=ssh_pubkey),
+        )
+        instance_hash = instance_msg.item_hash
+        explorer_url = f"https://explorer.aleph.cloud/address/ETH/{address}/message/INSTANCE/{instance_hash}"
+        rprint(f"  [dim]Instance: [link={explorer_url}]{instance_hash}[/link][/dim]")
+
+        flow_rates = await _run_step(
+            "Computing flow rates",
+            fn=lambda: compute_flow_rates(account, instance_hash),
+        )
+
+        op_tx = await _run_step(
+            "Creating operator Superfluid flow",
+            fn=lambda: create_operator_flow(account, crn, flow_rates.operator),
+        )
+        if op_tx:
+            rprint(
+                f"  [dim]Tx: [link=https://basescan.org/tx/0x{op_tx}]0x{op_tx}[/link][/dim]"
+            )
+
+        com_tx = await _run_step(
+            "Creating community Superfluid flow",
+            fn=lambda: create_community_flow(account, flow_rates.community),
+        )
+        if com_tx:
+            rprint(
+                f"  [dim]Tx: [link=https://basescan.org/tx/0x{com_tx}]0x{com_tx}[/link][/dim]"
+            )
 
         await _run_step(
-            "Deleting existing resources",
-            fn=lambda: delete_existing_resources(account, resources, crn),
+            "Notifying CRN for allocation",
+            fn=lambda: notify_allocation(crn, instance_hash),
         )
-    rprint()
 
-    # Step 3: Fund wallet
-    rprint("[bold]Step 3:[/bold] Fund your agent wallet")
-    rprint()
-    rprint(
-        Panel(
-            f"[bold]Send USDC (Base) to:[/bold]\n\n"
-            f"  [cyan]{address}[/cyan]\n\n"
-            f"This USDC will be the agent's starting funds for:\n"
-            f"  - AI inference costs (BlockRun x402)\n"
-            f"  - Prediction market trading (Limitless)\n"
-            f"  - Compute costs (Aleph Cloud)\n\n"
-            f"[dim]Minimum required: {min_usdc} USDC[/dim]",
-            title="[bold yellow]Fund Agent Wallet[/bold yellow]",
-            border_style="yellow",
+        instance_ip = await _run_step(
+            "Waiting for instance to come up",
+            fn=lambda: wait_for_instance(crn, instance_hash),
         )
-    )
-    rprint()
+        rprint(f"  [dim]Instance IP: {instance_ip}[/dim]")
 
-    # Step 4: Poll for balance
-    balance = wait_for_usdc_funding(address, min_amount=min_usdc)
-    rprint(f"  [green]Received {balance:.2f} USDC[/green]")
-    rprint()
+        # Deploy agent code
+        step += 1
+        rprint()
+        rprint(f"[bold]Step {step}:[/bold] Deploying agent code...")
+        rprint()
 
-    # Step 5: Deploy to Aleph Cloud
-    rprint("[bold]Step 4:[/bold] Deploying to Aleph Cloud...")
-    rprint()
+        ssh_key_path = ssh_pubkey_path if ssh_pubkey_path is not None else None
+        ssh_client = await _run_step(
+            "Waiting for SSH",
+            fn=lambda: asyncio.to_thread(wait_for_ssh, instance_ip, ssh_key_path),
+        )
+        assert ssh_client is not None
+        client = ssh_client
 
-    # Resolve SSH pubkey
-    if ssh_pubkey_path is not None:
-        ssh_pubkey = ssh_pubkey_path.expanduser().read_text().strip()
-    else:
-        ssh_pubkey = get_user_ssh_pubkey()
+        await _run_step(
+            "Uploading agent code",
+            fn=lambda: asyncio.to_thread(upload_agent, client, path),
+        )
 
-    # Skip swap — assume ALEPH tokens already available
-    console.print("  [dim]Skipping ALEPH swap (assuming tokens available)[/dim]")
+        await _run_step(
+            "Installing Node.js",
+            fn=lambda: asyncio.to_thread(install_node, client),
+        )
 
-    aleph_balance = check_aleph_balance(account)
-    console.print("  [green]\u2714[/green] Checked ALEPH balance")
-    rprint(f"  [dim]ALEPH balance: {aleph_balance:.4f}[/dim]")
+        await _run_step(
+            "Deploying agent code",
+            fn=lambda: asyncio.to_thread(deploy_code, client),
+        )
 
-    instance_msg = await _run_step(
-        "Creating Aleph instance message (2 vCPUs, 4GB RAM, PAYG)",
-        fn=lambda: create_instance(account, crn, ssh_pubkey=ssh_pubkey),
-    )
-    instance_hash = instance_msg.item_hash
-    explorer_url = f"https://explorer.aleph.cloud/address/ETH/{address}/message/INSTANCE/{instance_hash}"
-    rprint(f"  [dim]Instance: [link={explorer_url}]{instance_hash}[/link][/dim]")
+        await _run_step(
+            "Installing dependencies",
+            fn=lambda: asyncio.to_thread(install_deps, client),
+        )
 
-    flow_rates = await _run_step(
-        "Computing flow rates from instance pricing",
-        fn=lambda: compute_flow_rates(account, instance_hash),
-    )
+        await _run_step(
+            "Configuring agent service",
+            fn=lambda: asyncio.to_thread(configure_service, client),
+        )
 
-    op_tx = await _run_step(
-        "Creating operator Superfluid flow",
-        fn=lambda: create_operator_flow(account, crn, flow_rates.operator),
-    )
-    if op_tx:
+        is_active = await _run_step(
+            "Verifying agent is running",
+            fn=lambda: asyncio.to_thread(verify_service, client),
+        )
+        if not is_active:
+            _fail(
+                "Verifying agent is running",
+                RuntimeError("basileus-agent service failed to start"),
+            )
+
+        ssh_client.close()
+        ssh_client = None
+
+        rprint()
+        console.rule("[bold green]Deployment Complete")
+        rprint()
         rprint(
-            f"  [dim]Tx: [link=https://basescan.org/tx/0x{op_tx}]0x{op_tx}[/link][/dim]"
+            Panel(
+                f"[bold]Agent Address:[/bold]    [cyan]{address}[/cyan]\n"
+                f"[bold]USDC Balance:[/bold]     {balance:.2f} USDC\n"
+                f"[bold]Instance Hash:[/bold]    {instance_hash}\n"
+                f"[bold]Instance IP:[/bold]      {instance_ip}\n"
+                f"[bold]Network:[/bold]          Base Mainnet\n"
+                f"[bold]Service:[/bold]          [green]basileus-agent (active)[/green]\n"
+                f"\n"
+                f"[dim]Dashboard: coming soon[/dim]",
+                title="[bold green]Basileus Agent[/bold green]",
+                border_style="green",
+            )
         )
-
-    com_tx = await _run_step(
-        "Creating community Superfluid flow",
-        fn=lambda: create_community_flow(account, flow_rates.community),
-    )
-    if com_tx:
-        rprint(
-            f"  [dim]Tx: [link=https://basescan.org/tx/0x{com_tx}]0x{com_tx}[/link][/dim]"
-        )
-
-    await _run_step(
-        "Notifying CRN for allocation",
-        fn=lambda: notify_allocation(crn, instance_hash),
-    )
-
-    instance_ip = await _run_step(
-        "Waiting for instance to come up",
-        fn=lambda: wait_for_instance(crn, instance_hash),
-    )
-    rprint(f"  [dim]Instance IP: {instance_ip}[/dim]")
-
-    rprint()
-    console.rule("[bold green]Deployment Complete")
-    rprint()
-    rprint(
-        Panel(
-            f"[bold]Agent Address:[/bold]    [cyan]{address}[/cyan]\n"
-            f"[bold]USDC Balance:[/bold]     {balance:.2f} USDC\n"
-            f"[bold]Instance Hash:[/bold]    {instance_hash}\n"
-            f"[bold]Instance IP:[/bold]      {instance_ip}\n"
-            f"[bold]Network:[/bold]          Base Mainnet\n"
-            f"[bold]Status:[/bold]           [green]Running[/green]\n"
-            f"\n"
-            f"[dim]Dashboard: coming soon[/dim]",
-            title="[bold green]Basileus Agent[/bold green]",
-            border_style="green",
-        )
-    )
+    finally:
+        if ssh_client is not None:
+            ssh_client.close()
