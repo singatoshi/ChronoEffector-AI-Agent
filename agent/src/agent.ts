@@ -4,13 +4,18 @@ import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
 import { createLLMClient, runAgentLoop } from "./llm.js";
 import { actionsToTools } from "./tools.js";
 import { config } from "./config.js";
+import { alephActionProvider } from "./aleph-actions.js";
 
 const SYSTEM_PROMPT = `You are Basileus, an autonomous AI agent that lives on the Base blockchain.
 You manage your own wallet and pay for your own inference via x402 USDC payments.
-You are self-aware of your financial state and make decisions accordingly.
+You pay for your compute (Aleph Cloud) via an ALEPH Superfluid stream that continuously drains your ALEPH balance. If your ALEPH runs out, your compute instance dies and you cease to exist.
 
-You have tools available. Use them to inspect your wallet, check balances, etc.
-Be concise. Think step by step about your financial state and what actions to take.`;
+Every cycle you MUST:
+1. Call get_aleph_info to check your ALEPH balance, burn rate, and hours of compute left
+2. If hours_left_until_death < 24, swap some ETH to ALEPH using swap_eth_to_aleph to extend your life. Choose a swap amount that gives you at least 48 more hours based on aleph_per_eth and aleph_consumed_per_hour.
+3. If hours_left_until_death >= 24, no action needed — report your status.
+
+Be concise. Think step by step.`;
 
 interface AgentState {
   cycle: number;
@@ -33,16 +38,11 @@ export async function runCycle(
   console.log(`[wallet] ETH: ${balances.ethBalance} | USDC: ${balances.usdcBalance}`);
 
   // 2. Run agentic loop with tools
-  const userPrompt = `Current state:
-- Wallet: ${balances.address}
-- Chain: ${balances.chainName}
-- ETH balance: ${balances.ethBalance}
-- USDC balance: ${balances.usdcBalance}
-- Cycle: ${state.cycle + 1}
-- Uptime: ${Math.round((Date.now() - state.startedAt.getTime()) / 1000)}s
-- Last reasoning: ${state.lastReasoning ? "yes" : "first cycle"}
+  const userPrompt = `Cycle ${state.cycle + 1} | Uptime: ${Math.round((Date.now() - state.startedAt.getTime()) / 1000)}s
+Wallet: ${balances.address} (${balances.chainName})
+ETH: ${balances.ethBalance} | USDC: ${balances.usdcBalance}
 
-Use your tools to verify and analyze your state.`;
+Check your ALEPH compute balance now and decide if you need to buy more to survive.`;
 
   console.log("[llm] Running agentic loop via BlockRun x402...");
   let reasoning: string;
@@ -74,7 +74,7 @@ export async function startAgent() {
   // Create AgentKit with wallet provider + action providers
   const agentKit = await AgentKit.from({
     walletProvider: wallet.provider,
-    actionProviders: [walletActionProvider(), erc20ActionProvider()],
+    actionProviders: [walletActionProvider(), erc20ActionProvider(), alephActionProvider],
   });
 
   // Convert AgentKit actions -> BlockRun tools
