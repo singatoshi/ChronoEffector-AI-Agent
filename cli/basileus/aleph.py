@@ -9,7 +9,6 @@ from aiohttp import ClientSession
 from aleph.sdk.chains.ethereum import ETHAccount
 from aleph.sdk.client.authenticated_http import AlephHttpClient, AuthenticatedAlephHttpClient
 from aleph.sdk.conf import settings
-from aleph.sdk.connectors.superfluid import Superfluid
 from aleph.sdk.evm_utils import FlowUpdate
 from aleph.sdk.query.filters import MessageFilter
 from aleph_message.models import (
@@ -53,26 +52,33 @@ DEFAULT_CRN = CRNInfo(
 )
 
 
-def _patch_superfluid_gas() -> None:
-    """Patch Superfluid connector to use reasonable gas params for Base L2.
+def _patch_aleph_sdk() -> None:
+    """Patch Aleph SDK for Base L2 compatibility.
 
-    The SDK's build_transaction sets maxFeePerGas too high, causing the RPC
-    to reject with 'insufficient funds' even though actual cost is tiny on Base.
+    1. Skip can_transact — its balance check uses inflated maxFeePerGas.
+    2. Fix nonce — SDK uses 'latest' which can be stale between consecutive
+       txs on fast L2s. Wrap original method to use 'pending' instead.
     """
-    _original = Superfluid._get_populated_transaction_request
+    from aleph.sdk.chains.ethereum import ETHAccount
+    from aleph.sdk.connectors.superfluid import Superfluid
+    from web3 import Web3
 
-    def _patched(self: Superfluid, operation: Any, rpc: str) -> Any:
-        tx = _original(self, operation, rpc)
-        if self.account._provider:
-            base_fee = self.account._provider.eth.get_block("latest")["baseFeePerGas"]
-            tx["maxFeePerGas"] = base_fee * 3
-            tx["maxPriorityFeePerGas"] = 1_000_000  # 0.001 gwei
+    ETHAccount.can_transact = lambda self, tx=None, block=True: True  # type: ignore[assignment,misc]
+
+    _original_get_tx = Superfluid._get_populated_transaction_request
+
+    def _patched_get_tx(self: Superfluid, operation: Any, rpc: str) -> Any:
+        tx = _original_get_tx(self, operation, rpc)
+        w3 = Web3(Web3.HTTPProvider(rpc))
+        tx["nonce"] = w3.eth.get_transaction_count(
+            w3.to_checksum_address(self.normalized_address), "pending"
+        )
         return tx
 
-    Superfluid._get_populated_transaction_request = _patched  # type: ignore[assignment]
+    Superfluid._get_populated_transaction_request = _patched_get_tx  # type: ignore[assignment]
 
 
-_patch_superfluid_gas()
+_patch_aleph_sdk()
 
 
 def get_aleph_account(private_key: str) -> ETHAccount:
@@ -135,21 +141,27 @@ async def delete_existing_resources(account: ETHAccount, resources: ExistingReso
         flow_info = await account.get_flow(crn.receiver_address)
         flow_rate = Decimal(flow_info["flowRate"] or 0)
         if flow_rate > 0:
-            await account.manage_flow(
+            tx_hash = await account.manage_flow(
                 receiver=crn.receiver_address,
                 flow=flow_rate,
                 update_type=FlowUpdate.REDUCE,
             )
+            _check_tx(account, tx_hash, "Delete operator flow")
+            await asyncio.sleep(5)
 
     if resources.has_community_flow:
         flow_info = await account.get_flow(COMMUNITY_RECEIVER)
         flow_rate = Decimal(flow_info["flowRate"] or 0)
         if flow_rate > 0:
-            await account.manage_flow(
+            tx_hash = await account.manage_flow(
                 receiver=COMMUNITY_RECEIVER,
                 flow=flow_rate,
                 update_type=FlowUpdate.REDUCE,
             )
+            _check_tx(account, tx_hash, "Delete community flow")
+
+    if resources.has_operator_flow or resources.has_community_flow:
+        await asyncio.sleep(5)
 
     # Forget instance messages (off-chain, no nonce issues)
     if resources.instance_hashes:
@@ -206,10 +218,18 @@ async def create_instance(
         return instance_message
 
 
-async def create_flows(
-    account: ETHAccount, instance_hash: str, crn: CRNInfo
-) -> None:
-    """Create PAYG Superfluid flows (operator + community). Waits for on-chain confirmation."""
+@dataclass
+class FlowRates:
+    """Computed flow rates for operator and community."""
+
+    operator: Decimal
+    community: Decimal
+
+
+async def compute_flow_rates(
+    account: ETHAccount, instance_hash: str,
+) -> FlowRates:
+    """Compute required Superfluid flow rates from instance pricing."""
     async with AuthenticatedAlephHttpClient(
         account=account, api_server=ALEPH_API_URL
     ) as client:
@@ -219,28 +239,56 @@ async def create_flows(
 
         estimated = await client.get_estimated_price(content=instance_msg.content)
         total_flow = Decimal(estimated.required_tokens)
-        community_flow = total_flow * COMMUNITY_FLOW_PERCENTAGE
-        operator_flow = total_flow * (1 - COMMUNITY_FLOW_PERCENTAGE)
+        return FlowRates(
+            operator=total_flow * (1 - COMMUNITY_FLOW_PERCENTAGE),
+            community=total_flow * COMMUNITY_FLOW_PERCENTAGE,
+        )
 
-    # Create operator flow (waits for tx receipt)
+
+def _check_tx(account: ETHAccount, tx_hash: str | None, label: str) -> None:
+    """Check that a tx succeeded on-chain. Raises if reverted."""
+    if tx_hash is None:
+        raise ValueError(f"{label}: no tx hash returned")
+    from hexbytes import HexBytes
+
+    receipt = account._provider.eth.get_transaction_receipt(HexBytes(tx_hash))  # type: ignore[union-attr]
+    if receipt["status"] != 1:
+        raise ValueError(f"{label}: tx {tx_hash} reverted on-chain")
+
+
+async def create_operator_flow(
+    account: ETHAccount, crn: CRNInfo, flow_rate: Decimal,
+) -> str | None:
+    """Create operator Superfluid flow. Checks tx receipt. Returns tx hash."""
     existing = await account.get_flow(crn.receiver_address)
     existing_rate = Decimal(existing["flowRate"] or 0)
-    if existing_rate < operator_flow:
-        await account.manage_flow(
+    if existing_rate < flow_rate:
+        tx_hash = await account.manage_flow(
             receiver=crn.receiver_address,
-            flow=operator_flow - existing_rate,
+            flow=flow_rate - existing_rate,
             update_type=FlowUpdate.INCREASE,
         )
+        _check_tx(account, tx_hash, "Operator flow")
+        return tx_hash
+    return None
 
-    # Create community flow (waits for tx receipt)
+
+async def create_community_flow(
+    account: ETHAccount, flow_rate: Decimal,
+) -> str | None:
+    """Create community Superfluid flow. Checks tx receipt. Returns tx hash."""
+    await asyncio.sleep(5)
     existing = await account.get_flow(COMMUNITY_RECEIVER)
     existing_rate = Decimal(existing["flowRate"] or 0)
-    if existing_rate < community_flow:
-        await account.manage_flow(
+    if existing_rate < flow_rate:
+        tx_hash = await account.manage_flow(
             receiver=COMMUNITY_RECEIVER,
-            flow=community_flow - existing_rate,
+            flow=flow_rate - existing_rate,
             update_type=FlowUpdate.INCREASE,
         )
+        _check_tx(account, tx_hash, "Community flow")
+        return tx_hash
+    return None
 
 
 async def notify_allocation(
@@ -256,7 +304,7 @@ async def notify_allocation(
                 if resp.ok:
                     return
                 error = await resp.text()
-                if "Insufficient payment stream" in error and attempt < max_retries - 1:
+                if ("payment stream" in error.lower() or "402" in error) and attempt < max_retries - 1:
                     await asyncio.sleep(retry_delay)
                     continue
                 raise ValueError(f"Allocation failed: {error}")

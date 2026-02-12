@@ -6,7 +6,7 @@ on:
 
 jobs:
   agent-lint:
-    name: Agent - Lint
+    name: CLI - Lint
     runs-on: ubuntu-latest
     defaults:
       run:

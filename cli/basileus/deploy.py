@@ -14,8 +14,10 @@ from basileus.aleph import (
     DEFAULT_CRN,
     check_aleph_balance,
     check_existing_resources,
-    create_flows,
+    compute_flow_rates,
+    create_community_flow,
     create_instance,
+    create_operator_flow,
     delete_existing_resources,
     get_aleph_account,
     get_user_ssh_pubkey,
@@ -177,12 +179,27 @@ async def deploy_command(
         fn=lambda: create_instance(account, crn, ssh_pubkey=ssh_pubkey),
     )
     instance_hash = instance_msg.item_hash
-    rprint(f"  [dim]Instance hash: {instance_hash}[/dim]")
+    explorer_url = f"https://explorer.aleph.cloud/address/ETH/{address}/message/INSTANCE/{instance_hash}"
+    rprint(f"  [dim]Instance: [link={explorer_url}]{instance_hash}[/link][/dim]")
 
-    await _run_step(
-        "Creating Superfluid payment flows (operator + community)",
-        fn=lambda: create_flows(account, instance_hash, crn),
+    flow_rates = await _run_step(
+        "Computing flow rates from instance pricing",
+        fn=lambda: compute_flow_rates(account, instance_hash),
     )
+
+    op_tx = await _run_step(
+        "Creating operator Superfluid flow",
+        fn=lambda: create_operator_flow(account, crn, flow_rates.operator),
+    )
+    if op_tx:
+        rprint(f"  [dim]Tx: [link=https://basescan.org/tx/0x{op_tx}]0x{op_tx}[/link][/dim]")
+
+    com_tx = await _run_step(
+        "Creating community Superfluid flow",
+        fn=lambda: create_community_flow(account, flow_rates.community),
+    )
+    if com_tx:
+        rprint(f"  [dim]Tx: [link=https://basescan.org/tx/0x{com_tx}]0x{com_tx}[/link][/dim]")
 
     await _run_step(
         "Notifying CRN for allocation",
