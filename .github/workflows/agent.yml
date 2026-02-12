@@ -1,4 +1,4 @@
-name: CI
+name: Agent CI
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
 
 jobs:
   agent-format:
+    name: Agent - Format
     runs-on: ubuntu-latest
     defaults:
       run:

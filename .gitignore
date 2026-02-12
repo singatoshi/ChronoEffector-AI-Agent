@@ -3,3 +3,12 @@
 agent/node_modules/
 agent/dist/
 agent/.env
+agent/.env.local
+agent/.env.prod
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.venv/

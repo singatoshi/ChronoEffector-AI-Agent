@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "basileus"
+version = "0.1.0"
+description = "CLI for deploying Basileus autonomous prediction market agents"
+authors = ["Basileus Team"]
+readme = "README.md"
+packages = [{include = "basileus"}]
+
+[tool.poetry.scripts]
+basileus = "basileus.main:app"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+typer = {version = "^0.15.0", extras = ["all"]}
+python-dotenv = "^1.0.1"
+eth-account = "^0.13.0"
+web3 = "^7.0.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9.0"
+mypy = "^1.14.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

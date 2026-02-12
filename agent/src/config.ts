@@ -1,4 +1,13 @@
-import "dotenv/config";
+import { config as dotenvConfig } from "dotenv";
+import { existsSync } from "fs";
+
+// Load env files in order: .env (base), .env.local (local overrides), .env.prod (production/deployed)
+// Later files override earlier ones
+for (const envFile of [".env", ".env.local", ".env.prod"]) {
+  if (existsSync(envFile)) {
+    dotenvConfig({ path: envFile, override: true });
+  }
+}
 import { type Hex } from "viem";
 import { base, baseSepolia } from "viem/chains";
 
