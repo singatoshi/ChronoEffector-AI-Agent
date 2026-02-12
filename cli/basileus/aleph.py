@@ -107,15 +107,7 @@ async def check_existing_resources(account: ETHAccount, crn: CRNInfo) -> Existin
 
 async def delete_existing_resources(account: ETHAccount, resources: ExistingResources, crn: CRNInfo) -> None:
     """Delete existing instance messages and close Superfluid flows."""
-    # Forget instance messages
-    if resources.instance_hashes:
-        async with AuthenticatedAlephHttpClient(
-            account=account, api_server=ALEPH_API_URL
-        ) as client:
-            for h in resources.instance_hashes:
-                await client.forget(hashes=[h], reason="Cleanup before redeployment", channel=ALEPH_CHANNEL)
-
-    # Close flows
+    # Close flows first (on-chain txs that can conflict on nonce)
     if resources.has_operator_flow:
         flow_info = await account.get_flow(crn.receiver_address)
         flow_rate = Decimal(flow_info["flowRate"] or 0)
@@ -135,6 +127,14 @@ async def delete_existing_resources(account: ETHAccount, resources: ExistingReso
                 flow=flow_rate,
                 update_type=FlowUpdate.REDUCE,
             )
+
+    # Forget instance messages (off-chain, no nonce issues)
+    if resources.instance_hashes:
+        async with AuthenticatedAlephHttpClient(
+            account=account, api_server=ALEPH_API_URL
+        ) as client:
+            for h in resources.instance_hashes:
+                await client.forget(hashes=[h], reason="Cleanup before redeployment", channel=ALEPH_CHANNEL)
 
 
 async def create_instance(
