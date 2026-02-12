@@ -9,6 +9,7 @@ from aiohttp import ClientSession
 from aleph.sdk.chains.ethereum import ETHAccount
 from aleph.sdk.client.authenticated_http import AlephHttpClient, AuthenticatedAlephHttpClient
 from aleph.sdk.conf import settings
+from aleph.sdk.connectors.superfluid import Superfluid
 from aleph.sdk.evm_utils import FlowUpdate
 from aleph.sdk.query.filters import MessageFilter
 from aleph_message.models import (
@@ -50,6 +51,28 @@ DEFAULT_CRN = CRNInfo(
     hash="dc3d1d194a990b5c54380c3c0439562fefa42f5a46807cba1c500ec3affecf04",
     receiver_address="0xf0c0ddf11a0dCE6618B5DF8d9fAE3D95e72E04a9",
 )
+
+
+def _patch_superfluid_gas() -> None:
+    """Patch Superfluid connector to use reasonable gas params for Base L2.
+
+    The SDK's build_transaction sets maxFeePerGas too high, causing the RPC
+    to reject with 'insufficient funds' even though actual cost is tiny on Base.
+    """
+    _original = Superfluid._get_populated_transaction_request
+
+    def _patched(self: Superfluid, operation: Any, rpc: str) -> Any:
+        tx = _original(self, operation, rpc)
+        if self.account._provider:
+            base_fee = self.account._provider.eth.get_block("latest")["baseFeePerGas"]
+            tx["maxFeePerGas"] = base_fee * 3
+            tx["maxPriorityFeePerGas"] = 1_000_000  # 0.001 gwei
+        return tx
+
+    Superfluid._get_populated_transaction_request = _patched  # type: ignore[assignment]
+
+
+_patch_superfluid_gas()
 
 
 def get_aleph_account(private_key: str) -> ETHAccount:
