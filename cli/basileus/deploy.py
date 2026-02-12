@@ -5,14 +5,13 @@ from pathlib import Path
 from typing import Any
 
 import typer
-from dotenv import dotenv_values
 from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
 from rich.status import Status
 
 from basileus.balance import wait_for_usdc_funding
-from basileus.wallet import generate_wallet
+from basileus.wallet import generate_wallet, load_existing_wallet
 
 console = Console()
 
@@ -55,47 +54,33 @@ async def deploy_command(
     console.rule("[bold blue]Basileus Agent Deployment")
     rprint()
 
-    # Step 1: Generate wallet
-    rprint("[bold]Step 1:[/bold] Generating Base wallet...")
-    address, private_key = generate_wallet()
-    rprint(f"  [green]Wallet generated:[/green] {address}")
+    # Step 1: Wallet
+    rprint("[bold]Step 1:[/bold] Setting up Base wallet...")
+    existing = load_existing_wallet(agent_dir)
+    if existing:
+        address, private_key = existing
+        rprint(f"  [green]Using existing wallet:[/green] {address}")
+        env_vars = None
+    else:
+        address, private_key = generate_wallet()
+        rprint(f"  [green]Wallet generated:[/green] {address}")
+        env_vars = {
+            "BASE_CHAIN_WALLET_KEY": private_key,
+            "NETWORK": "base",
+            "CYCLE_INTERVAL_MS": "60000",
+            "LLM_MODEL": "anthropic/claude-sonnet-4",
+        }
     rprint()
 
-    # Step 2: Write .env
-    rprint("[bold]Step 2:[/bold] Configuring agent environment...")
-
-    env_vars: dict[str, str] | None = {
-        "BASE_CHAIN_WALLET_KEY": private_key,
-        "NETWORK": "base",
-        "CYCLE_INTERVAL_MS": "60000",
-        "LLM_MODEL": "anthropic/claude-sonnet-4",
-    }
-
-    if env_path.exists():
-        existing = dotenv_values(env_path)
-        if existing.get("BASE_CHAIN_WALLET_KEY"):
-            overwrite = typer.confirm(
-                "  .env.prod already exists with a wallet key. Overwrite?",
-                default=False,
-            )
-            if not overwrite:
-                rprint("  [yellow]Keeping existing .env file.[/yellow]")
-                private_key = existing["BASE_CHAIN_WALLET_KEY"]  # type: ignore[assignment]
-                from eth_account import Account
-
-                address = Account.from_key(private_key).address
-                rprint(f"  [green]Using existing wallet:[/green] {address}")
-                rprint()
-                env_vars = None
-
+    # Step 2: Write .env.prod (only if new wallet)
     if env_vars is not None:
+        rprint("[bold]Step 2:[/bold] Configuring agent environment...")
         env_content = "\n".join(f"{k}={v}" for k, v in env_vars.items()) + "\n"
         os.makedirs(agent_dir, exist_ok=True)
         with open(env_path, "w") as f:
             f.write(env_content)
         rprint(f"  [green]Saved to {env_path}[/green]")
-
-    rprint()
+        rprint()
 
     # Step 3: Fund wallet
     rprint("[bold]Step 3:[/bold] Fund your agent wallet")
