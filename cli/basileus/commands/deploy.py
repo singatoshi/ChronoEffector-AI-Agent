@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import typer
+from web3 import Web3
 from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
@@ -37,6 +38,8 @@ from basileus.aleph import (
 )
 from basileus.balance import wait_for_usdc_funding
 from basileus.wallet import generate_wallet, load_existing_wallet
+from basileus.constants import BASE_RPC_URL
+from basileus.ens import check_existing_subname, check_label_available, register_subname
 
 console = Console()
 
@@ -116,6 +119,16 @@ async def deploy_command(
                 }
         except Exception as e:
             _fail("Setting up Base wallet", e)
+
+        w3 = Web3(Web3.HTTPProvider(BASE_RPC_URL))
+        existing_label = check_existing_subname(w3, address)
+        needs_ens = existing_label is None
+        label = existing_label
+
+        if existing_label:
+            rprint(
+                f"  [green]ENS:[/green] [bold cyan]{existing_label}.basileus-agent.eth[/bold cyan]"
+            )
         rprint()
 
         # Write .env.prod (only if new wallet)
@@ -189,6 +202,44 @@ async def deploy_command(
         balance = wait_for_usdc_funding(address, min_amount=min_usdc)
         rprint(f"  [green]Received {balance:.2f} USDC[/green]")
         rprint()
+
+        # Register ENS subname (if needed)
+        if needs_ens:
+            step += 1
+            rprint(f"[bold]Step {step}:[/bold] Register ENS subname")
+            rprint(
+                "  Choose a name for your agent (will become [cyan]<name>.basileus-agent.eth[/cyan])"
+            )
+            rprint("  [dim]Must be at least 3 characters[/dim]")
+            rprint()
+
+            while True:
+                label = typer.prompt("  Enter subname").strip().lower()
+                try:
+                    is_available = check_label_available(w3, label)
+                except Exception as e:
+                    rprint(f"  [red]Error checking availability: {e}[/red]")
+                    continue
+
+                if is_available:
+                    break
+                rprint(
+                    f"  [red]{label}.basileus-agent.eth is already taken, try another[/red]"
+                )
+
+            try:
+                tx_hash = await _run_step(
+                    f"Registering {label}.basileus-agent.eth",
+                    fn=lambda: asyncio.to_thread(
+                        register_subname, w3, private_key, label, address
+                    ),
+                )
+                rprint(
+                    f"  [dim]Tx: [link=https://basescan.org/tx/{tx_hash}]{tx_hash}[/link][/dim]"
+                )
+            except Exception as e:
+                _fail("Registering ENS subname", e)
+            rprint()
 
         # Create Aleph Cloud instance
         step += 1
@@ -311,8 +362,8 @@ async def deploy_command(
         rprint(
             Panel(
                 f"[bold]Agent Address:[/bold]    [cyan]{address}[/cyan]\n"
+                f"[bold]ENS Name:[/bold]         [cyan]{label}.basileus-agent.eth[/cyan]\n"
                 f"[bold]USDC Balance:[/bold]     {balance:.2f} USDC\n"
-                f"[bold]Instance Hash:[/bold]    {instance_hash}\n"
                 f"[bold]Instance IP:[/bold]      {instance_ip}\n"
                 f"[bold]Network:[/bold]          Base Mainnet\n"
                 f"[bold]Service:[/bold]          [green]basileus-agent (active)[/green]\n"

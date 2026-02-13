@@ -16,3 +16,33 @@ ERC20_BALANCE_ABI = [
         "type": "function",
     }
 ]
+
+# L2Registrar on Base (ENS subnames for basileus-agent.eth)
+L2_REGISTRAR_ADDRESS = "0xBb3699a3018A8a82A94be194eCfe65512AD8E995"
+
+L2_REGISTRAR_ABI = [
+    {
+        "inputs": [{"name": "owner", "type": "address"}],
+        "name": "reverseNames",
+        "outputs": [{"name": "", "type": "string"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "label", "type": "string"}],
+        "name": "available",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "label", "type": "string"},
+            {"name": "owner", "type": "address"},
+        ],
+        "name": "register",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+]
