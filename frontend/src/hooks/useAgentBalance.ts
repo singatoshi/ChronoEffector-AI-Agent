@@ -18,12 +18,16 @@ export function useAgentBalance(address: `0x${string}` | undefined) {
       const [ethBal, usdcBal, alephBal] = await Promise.all([
         publicClient.getBalance({ address }),
         publicClient.readContract({
-          address: USDC, abi: erc20BalanceAbi,
-          functionName: "balanceOf", args: [address],
+          address: USDC,
+          abi: erc20BalanceAbi,
+          functionName: "balanceOf",
+          args: [address],
         }),
         publicClient.readContract({
-          address: ALEPH, abi: erc20BalanceAbi,
-          functionName: "balanceOf", args: [address],
+          address: ALEPH,
+          abi: erc20BalanceAbi,
+          functionName: "balanceOf",
+          args: [address],
         }),
       ]);
       return {

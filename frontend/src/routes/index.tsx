@@ -2,13 +2,7 @@ import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { detectAgentLabel } from "../lib/domain";
 import { useAgents, type Agent } from "../hooks/useAgents";
 import { useAgentStatus, type AgentStatus } from "../hooks/useAgentStatus";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/")({
@@ -21,10 +15,7 @@ export const Route = createFileRoute("/")({
 
 // --- Status helpers ---
 
-const STATUS_CONFIG: Record<
-  AgentStatus,
-  { label: string; color: string; dotClass: string }
-> = {
+const STATUS_CONFIG: Record<AgentStatus, { label: string; color: string; dotClass: string }> = {
   healthy: {
     label: "Healthy",
     color: "#22c55e",
@@ -89,9 +80,7 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
                 className="gap-1.5 border-[#262626] px-2 py-0.5 text-[11px]"
                 style={{ color: cfg.color }}
               >
-                <span
-                  className={`inline-block h-2 w-2 rounded-full ${cfg.dotClass}`}
-                />
+                <span className={`inline-block h-2 w-2 rounded-full ${cfg.dotClass}`} />
                 {cfg.label}
               </Badge>
             )}
@@ -109,10 +98,7 @@ function AgentCard({ agent, index }: { agent: Agent; index: number }) {
           {isLoading ? (
             <div className="h-4 w-24 animate-skeleton-pulse rounded bg-[#262626]" />
           ) : (
-            <span
-              className="text-xs text-[#a1a1aa]"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-xs text-[#a1a1aa]" style={{ fontFamily: "var(--font-mono)" }}>
               {formatHoursLeft(hoursLeft)}
             </span>
           )}
@@ -178,10 +164,7 @@ function HubPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <p
-            className="text-lg text-[#a1a1aa]"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+          <p className="text-lg text-[#a1a1aa]" style={{ fontFamily: "var(--font-heading)" }}>
             No agents registered yet
           </p>
           <p className="mt-1 text-sm text-[#52525b]">

@@ -1,7 +1,4 @@
-const HUB_SUFFIXES = [
-  "basileus-agent.eth.limo",
-  "basileus-agent.eth",
-];
+const HUB_SUFFIXES = ["basileus-agent.eth.limo", "basileus-agent.eth"];
 
 const HUB_DOMAINS = [
   "basileus-agent.eth.limo",

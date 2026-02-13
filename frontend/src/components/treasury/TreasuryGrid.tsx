@@ -61,7 +61,6 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
         icon={<span style={{ color: "#10b981" }}>&#9679;</span>}
         index={2}
       />
-
     </div>
   );
 }

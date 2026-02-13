@@ -5,10 +5,7 @@ interface ActivityRowProps {
   activity: AgentActivity;
 }
 
-const typeConfig: Record<
-  AgentActivity["type"],
-  { label: string; color: string; bg: string }
-> = {
+const typeConfig: Record<AgentActivity["type"], { label: string; color: string; bg: string }> = {
   cycle: {
     label: "Cycle",
     color: "text-[#818cf8]",
@@ -47,9 +44,7 @@ export function ActivityRow({ activity }: ActivityRowProps) {
       </p>
 
       {/* Timestamp */}
-      <span className="shrink-0 text-xs text-[#71717a]">
-        {relativeTime(activity.timestamp)}
-      </span>
+      <span className="shrink-0 text-xs text-[#71717a]">{relativeTime(activity.timestamp)}</span>
 
       {/* Tx link if present */}
       {activity.txHash && (

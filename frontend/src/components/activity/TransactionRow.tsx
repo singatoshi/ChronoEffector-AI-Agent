@@ -47,9 +47,7 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
       ) : (
         <span
           className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
-            isSent
-              ? "bg-[#f43f5e]/10 text-[#f43f5e]"
-              : "bg-[#22c55e]/10 text-[#22c55e]"
+            isSent ? "bg-[#f43f5e]/10 text-[#f43f5e]" : "bg-[#22c55e]/10 text-[#22c55e]"
           }`}
         >
           {isSent ? "\u2191" : "\u2193"}
@@ -60,14 +58,9 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3">
         {/* Label + context */}
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-[#fafafa]">
-            {methodLabel}
-          </span>
+          <span className="text-sm font-medium text-[#fafafa]">{methodLabel}</span>
           {!isSuperfluid && !isRegistrar && counterparty && (
-            <span
-              className="text-xs text-[#71717a]"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
+            <span className="text-xs text-[#71717a]" style={{ fontFamily: "var(--font-mono)" }}>
               {isSent ? "to" : "from"} {truncateAddress(counterparty)}
             </span>
           )}
@@ -76,10 +69,7 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
 
       {/* Value */}
       <div className="shrink-0 text-right">
-        <span
-          className="text-sm text-[#d4d4d8]"
-          style={{ fontFamily: "var(--font-mono)" }}
-        >
+        <span className="text-sm text-[#d4d4d8]" style={{ fontFamily: "var(--font-mono)" }}>
           {valueDisplay}
         </span>
         <span className="ml-1 text-xs text-[#71717a]">{symbolDisplay}</span>

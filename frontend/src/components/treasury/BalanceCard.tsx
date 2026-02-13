@@ -9,17 +9,10 @@ interface BalanceCardProps {
   index?: number;
 }
 
-export function BalanceCard({
-  label,
-  value,
-  accentColor,
-  icon,
-  index = 0,
-}: BalanceCardProps) {
+export function BalanceCard({ label, value, accentColor, icon, index = 0 }: BalanceCardProps) {
   // Truncate to 6 decimals for readability
   const parts = value.split(".");
-  const display =
-    parts.length === 2 ? `${parts[0]}.${parts[1].slice(0, 6)}` : value;
+  const display = parts.length === 2 ? `${parts[0]}.${parts[1].slice(0, 6)}` : value;
 
   return (
     <Card

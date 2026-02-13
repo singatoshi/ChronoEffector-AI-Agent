@@ -21,12 +21,9 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
   const txQuery = useTransactions(address);
   const actQuery = useActivities(address);
 
-  const allTxs = useMemo(
-    () => txQuery.data?.pages.flatMap((p) => p.items) ?? [],
-    [txQuery.data],
-  );
+  const allTxs = useMemo(() => txQuery.data?.pages.flatMap((p) => p.items) ?? [], [txQuery.data]);
 
-  const activities = actQuery.data ?? [];
+  const activities = useMemo(() => actQuery.data ?? [], [actQuery.data]);
 
   // Merge + sort
   const feedItems = useMemo(() => {
@@ -80,9 +77,7 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
             ))}
           </div>
         ) : feedItems.length === 0 ? (
-          <div className="py-12 text-center text-sm text-[#71717a]">
-            No activity yet
-          </div>
+          <div className="py-12 text-center text-sm text-[#71717a]">No activity yet</div>
         ) : (
           <div>
             {feedItems.map((item) =>
@@ -93,10 +88,7 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
                   agentAddress={address}
                 />
               ) : (
-                <ActivityRow
-                  key={`act-${item.data.id}`}
-                  activity={item.data}
-                />
+                <ActivityRow key={`act-${item.data.id}`} activity={item.data} />
               ),
             )}
           </div>

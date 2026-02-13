@@ -39,7 +39,7 @@ export function useAgents() {
             args: [owner],
           });
           return { label: label as string, owner };
-        })
+        }),
       );
 
       return results.filter((r) => r.label);

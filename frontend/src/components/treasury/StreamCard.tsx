@@ -34,11 +34,7 @@ export function StreamCard({
 
   const hlInfo = hoursLeftLabel(hoursLeft);
   const rateDisplay =
-    flowRatePerHour > 0
-      ? flowRatePerHour < 0.01
-        ? "< 0.01"
-        : flowRatePerHour.toFixed(2)
-      : "0";
+    flowRatePerHour > 0 ? (flowRatePerHour < 0.01 ? "< 0.01" : flowRatePerHour.toFixed(2)) : "0";
 
   return (
     <Card

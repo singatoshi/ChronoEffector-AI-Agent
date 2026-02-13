@@ -15,12 +15,8 @@ export function useSuperfluidStreams(address: `0x${string}` | undefined) {
     queryFn: async (): Promise<StreamInfo> => {
       if (!address) throw new Error("No address");
       const streams = await getOutflows(address);
-      const alephStreams = streams.filter((s) =>
-        s.token.symbol.toLowerCase().includes("aleph")
-      );
-      const totalFlowRate = alephStreams.reduce(
-        (sum, s) => sum + BigInt(s.currentFlowRate), 0n
-      );
+      const alephStreams = streams.filter((s) => s.token.symbol.toLowerCase().includes("aleph"));
+      const totalFlowRate = alephStreams.reduce((sum, s) => sum + BigInt(s.currentFlowRate), 0n);
       return {
         totalFlowRatePerSec: totalFlowRate,
         flowRatePerHour: parseFloat(formatUnits(totalFlowRate * 3600n, 18)),

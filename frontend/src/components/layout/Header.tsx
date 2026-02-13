@@ -46,14 +46,7 @@ export function Header() {
 
             {/* Separator */}
             <svg viewBox="0 0 8 20" className="h-5 w-2 text-[#3f3f46]">
-              <line
-                x1="7"
-                y1="0"
-                x2="1"
-                y2="20"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              />
+              <line x1="7" y1="0" x2="1" y2="20" stroke="currentColor" strokeWidth={1.5} />
             </svg>
 
             {/* Agent ENS name */}
