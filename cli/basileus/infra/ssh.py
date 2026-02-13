@@ -7,7 +7,7 @@ from pathlib import Path
 import paramiko
 from pathspec import PathSpec
 
-from basileus.scripts import (
+from basileus.infra.scripts import (
     CONFIGURE_SERVICE_SCRIPT,
     DEPLOY_CODE_SCRIPT,
     INSTALL_DEPS_SCRIPT,

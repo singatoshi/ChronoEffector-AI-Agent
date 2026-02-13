@@ -4,14 +4,14 @@ import typer
 from rich import print as rprint
 from rich.console import Console
 
-from basileus.aleph import (
+from basileus.infra.aleph import (
     DEFAULT_CRN,
     check_existing_resources,
     delete_existing_resources,
     get_aleph_account,
 )
-from basileus.commands.deploy import _run_step
-from basileus.wallet import load_existing_wallet
+from basileus.ui import _run_step
+from basileus.chain.wallet import load_existing_wallet
 
 console = Console()
 

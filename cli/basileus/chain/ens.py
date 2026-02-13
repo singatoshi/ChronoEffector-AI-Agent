@@ -1,7 +1,7 @@
 from web3 import Web3
 from eth_account import Account
 
-from basileus.constants import (
+from basileus.chain.constants import (
     L2_REGISTRAR_ADDRESS,
     L2_REGISTRAR_ABI,
 )

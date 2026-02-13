@@ -32,7 +32,6 @@ from aleph_message.models.execution.environment import (
 ALEPH_API_URL = "https://api3.aleph.im"
 ALEPH_CHANNEL = "basileus"
 COMMUNITY_RECEIVER = "0x5aBd3258C5492fD378EBC2e0017416E199e5Da56"
-COMMUNITY_FLOW_PERCENTAGE = Decimal("0.2")
 
 PATH_EXECUTIONS_LIST = "/about/executions/list"
 PATH_INSTANCE_NOTIFY = "/control/allocation/notify"
@@ -133,7 +132,6 @@ async def check_existing_resources(
     account: ETHAccount, crn: CRNInfo
 ) -> ExistingResources:
     """Check if address already has instance messages or Superfluid flows."""
-    # Check existing instance messages
     async with AlephHttpClient(api_server=ALEPH_API_URL) as client:
         msgs = await client.get_messages(
             message_filter=MessageFilter(
@@ -144,7 +142,6 @@ async def check_existing_resources(
         )
         instance_hashes = [m.item_hash for m in msgs.messages]
 
-    # Check existing flows
     operator_flow: dict[str, Any] = await account.get_flow(crn.receiver_address)
     community_flow: dict[str, Any] = await account.get_flow(COMMUNITY_RECEIVER)
 
@@ -159,7 +156,8 @@ async def delete_existing_resources(
     account: ETHAccount, resources: ExistingResources, crn: CRNInfo
 ) -> None:
     """Delete existing instance messages and close Superfluid flows."""
-    # Close flows first (on-chain txs that can conflict on nonce)
+    from basileus.chain.superfluid import _check_tx
+
     if resources.has_operator_flow:
         flow_info = await account.get_flow(crn.receiver_address)
         flow_rate = Decimal(flow_info["flowRate"] or 0)
@@ -186,7 +184,6 @@ async def delete_existing_resources(
     if resources.has_operator_flow or resources.has_community_flow:
         await asyncio.sleep(5)
 
-    # Forget instance messages (off-chain, no nonce issues)
     if resources.instance_hashes:
         async with AuthenticatedAlephHttpClient(
             account=account, api_server=ALEPH_API_URL
@@ -243,83 +240,6 @@ async def create_instance(
             sync=True,
         )
         return instance_message
-
-
-@dataclass
-class FlowRates:
-    """Computed flow rates for operator and community."""
-
-    operator: Decimal
-    community: Decimal
-
-
-async def compute_flow_rates(
-    account: ETHAccount,
-    instance_hash: str,
-) -> FlowRates:
-    """Compute required Superfluid flow rates from instance pricing."""
-    async with AuthenticatedAlephHttpClient(
-        account=account, api_server=ALEPH_API_URL
-    ) as client:
-        instance_msg = await client.get_message(instance_hash, with_status=False)
-        if not isinstance(instance_msg, InstanceMessage):
-            raise ValueError(f"{instance_hash} is not an instance")
-
-        estimated = await client.get_estimated_price(content=instance_msg.content)
-        total_flow = Decimal(estimated.required_tokens)
-        return FlowRates(
-            operator=total_flow * (1 - COMMUNITY_FLOW_PERCENTAGE),
-            community=total_flow * COMMUNITY_FLOW_PERCENTAGE,
-        )
-
-
-def _check_tx(account: ETHAccount, tx_hash: str | None, label: str) -> None:
-    """Check that a tx succeeded on-chain. Raises if reverted."""
-    if tx_hash is None:
-        raise ValueError(f"{label}: no tx hash returned")
-    from hexbytes import HexBytes
-
-    receipt = account._provider.eth.get_transaction_receipt(HexBytes(tx_hash))  # type: ignore[union-attr]
-    if receipt["status"] != 1:
-        raise ValueError(f"{label}: tx {tx_hash} reverted on-chain")
-
-
-async def create_operator_flow(
-    account: ETHAccount,
-    crn: CRNInfo,
-    flow_rate: Decimal,
-) -> str | None:
-    """Create operator Superfluid flow. Checks tx receipt. Returns tx hash."""
-    existing = await account.get_flow(crn.receiver_address)
-    existing_rate = Decimal(existing["flowRate"] or 0)
-    if existing_rate < flow_rate:
-        tx_hash = await account.manage_flow(
-            receiver=crn.receiver_address,
-            flow=flow_rate - existing_rate,
-            update_type=FlowUpdate.INCREASE,
-        )
-        _check_tx(account, tx_hash, "Operator flow")
-        return tx_hash
-    return None
-
-
-async def create_community_flow(
-    account: ETHAccount,
-    flow_rate: Decimal,
-) -> str | None:
-    """Create community Superfluid flow. Checks tx receipt. Returns tx hash."""
-    await asyncio.sleep(5)
-    existing = await account.get_flow(COMMUNITY_RECEIVER)
-    existing_rate = Decimal(existing["flowRate"] or 0)
-    if existing_rate < flow_rate:
-        tx_hash = await account.manage_flow(
-            receiver=COMMUNITY_RECEIVER,
-            flow=flow_rate - existing_rate,
-            update_type=FlowUpdate.INCREASE,
-        )
-        _check_tx(account, tx_hash, "Community flow")
-        return tx_hash
-    return None
 
 
 async def notify_allocation(

@@ -5,7 +5,7 @@ from rich.live import Live
 from rich.spinner import Spinner
 from web3 import Web3
 
-from basileus.constants import (
+from basileus.chain.constants import (
     BASE_RPC_URL,
     ERC20_BALANCE_ABI,
     USDC_ADDRESS,

@@ -1,19 +1,16 @@
 import asyncio
 import os
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import typer
 from web3 import Web3
 from rich import print as rprint
 from rich.console import Console
 from rich.panel import Panel
-from rich.status import Status
 
 import paramiko
 
-from basileus.ssh import (
+from basileus.infra.ssh import (
     configure_service,
     deploy_code,
     install_deps,
@@ -22,50 +19,33 @@ from basileus.ssh import (
     verify_service,
     wait_for_ssh,
 )
-from basileus.aleph import (
+from basileus.infra.aleph import (
     DEFAULT_CRN,
     check_aleph_balance,
     check_existing_resources,
-    compute_flow_rates,
-    create_community_flow,
     create_instance,
-    create_operator_flow,
     delete_existing_resources,
     get_aleph_account,
     get_user_ssh_pubkey,
     notify_allocation,
     wait_for_instance,
 )
-from basileus.balance import wait_for_usdc_funding
-from basileus.wallet import generate_wallet, load_existing_wallet
-from basileus.constants import BASE_RPC_URL
-from basileus.ens import check_existing_subname, check_label_available, register_subname
+from basileus.chain.superfluid import (
+    compute_flow_rates,
+    create_community_flow,
+    create_operator_flow,
+)
+from basileus.chain.balance import wait_for_usdc_funding
+from basileus.chain.wallet import generate_wallet, load_existing_wallet
+from basileus.chain.constants import BASE_RPC_URL
+from basileus.chain.ens import (
+    check_existing_subname,
+    check_label_available,
+    register_subname,
+)
+from basileus.ui import _fail, _run_step
 
 console = Console()
-
-
-def _fail(label: str, error: Exception) -> None:
-    """Print a red X with error message and exit."""
-    console.print(f"  [red]\u2718[/red] {label}")
-    console.print(f"    [red]{error}[/red]")
-    raise typer.Exit(1)
-
-
-async def _run_step(
-    label: str, fn: Callable[[], Any] | None = None, mock_duration: float = 2.0
-) -> Any:
-    """Run a deployment step with spinner, then show checkmark. Returns fn result if provided."""
-    try:
-        with Status(f"{label}...", console=console, spinner="dots"):
-            if fn is not None:
-                result = await fn()
-            else:
-                await asyncio.sleep(mock_duration)
-                result = None
-        console.print(f"  [green]\u2714[/green] {label}")
-        return result
-    except Exception as e:
-        _fail(label, e)
 
 
 async def deploy_command(
