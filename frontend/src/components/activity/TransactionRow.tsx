@@ -1,5 +1,6 @@
 import type { BlockscoutTx } from "../../lib/blockscout";
 import { relativeTime, truncateAddress, formatWeiValue } from "../../lib/format";
+import { SUPERFLUID_CFAV1_FORWARDER, L2_REGISTRAR } from "../../lib/contracts";
 
 interface TransactionRowProps {
   tx: BlockscoutTx;
@@ -25,42 +26,52 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
     symbolDisplay = "ETH";
   }
 
-  const methodLabel = tx.method || "Transfer";
+  const toAddr = tx.to?.hash.toLowerCase() ?? "";
+  const isSuperfluid = toAddr === SUPERFLUID_CFAV1_FORWARDER.toLowerCase();
+  const isRegistrar = toAddr === L2_REGISTRAR.toLowerCase();
+
+  let methodLabel: string;
+  if (isSuperfluid && tx.method === "createFlow") methodLabel = "Start ALEPH stream";
+  else if (isSuperfluid && tx.method === "deleteFlow") methodLabel = "Stop ALEPH stream";
+  else if (isSuperfluid && tx.method === "updateFlow") methodLabel = "Update ALEPH stream";
+  else if (isRegistrar && tx.method === "register") methodLabel = "Register ENS name";
+  else methodLabel = tx.method || "Transfer";
 
   return (
     <div className="group flex items-center gap-3 border-b border-[#1a1a1a] px-3 py-3 sm:px-4 transition-colors hover:bg-[#141414]">
-      {/* Direction */}
-      <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
-          isSent
-            ? "bg-[#f43f5e]/10 text-[#f43f5e]"
-            : "bg-[#22c55e]/10 text-[#22c55e]"
-        }`}
-      >
-        {isSent ? "\u2191" : "\u2193"}
-      </span>
+      {/* Icon */}
+      {isSuperfluid ? (
+        <img src="/icons/aleph.png" alt="ALEPH" className="h-7 w-7 shrink-0 rounded-md" />
+      ) : isRegistrar ? (
+        <img src="/icons/ens.jpg" alt="ENS" className="h-7 w-7 shrink-0 rounded-md" />
+      ) : (
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+            isSent
+              ? "bg-[#f43f5e]/10 text-[#f43f5e]"
+              : "bg-[#22c55e]/10 text-[#22c55e]"
+          }`}
+        >
+          {isSent ? "\u2191" : "\u2193"}
+        </span>
+      )}
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3">
-        {/* Direction label + counterparty */}
+        {/* Label + context */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#fafafa]">
-            {isSent ? "Sent" : "Received"}
+            {methodLabel}
           </span>
-          {counterparty && (
+          {!isSuperfluid && !isRegistrar && counterparty && (
             <span
               className="text-xs text-[#71717a]"
               style={{ fontFamily: "var(--font-mono)" }}
             >
-              {truncateAddress(counterparty)}
+              {isSent ? "to" : "from"} {truncateAddress(counterparty)}
             </span>
           )}
         </div>
-
-        {/* Method badge */}
-        <span className="w-fit rounded bg-[#1a1a1a] px-1.5 py-0.5 text-[10px] text-[#71717a]">
-          {methodLabel}
-        </span>
       </div>
 
       {/* Value */}
