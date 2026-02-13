@@ -54,17 +54,8 @@ async def stop_command(
         rprint("[green]No active resources found — nothing to stop.[/green]")
         raise typer.Exit(0)
 
-    # Show what will be destroyed
-    details = []
-    if resources.instance_hashes:
-        details.append(f"{len(resources.instance_hashes)} instance(s)")
-    if resources.has_operator_flow:
-        details.append("operator payment flow")
-    if resources.has_community_flow:
-        details.append("community payment flow")
-
     rprint()
-    rprint(f"  [yellow]Will stop: {', '.join(details)}[/yellow]")
+    rprint(f"  [yellow]Will stop: {resources.summary}[/yellow]")
     rprint()
 
     confirm = typer.confirm("  Proceed with stopping the agent?", default=False)

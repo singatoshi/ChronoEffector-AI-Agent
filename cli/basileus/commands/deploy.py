@@ -155,15 +155,7 @@ async def deploy_command(
         )
 
         if resources.has_any:
-            details = []
-            if resources.instance_hashes:
-                details.append(f"{len(resources.instance_hashes)} instance(s)")
-            if resources.has_operator_flow:
-                details.append("operator flow")
-            if resources.has_community_flow:
-                details.append("community flow")
-
-            rprint(f"  [yellow]Found existing resources: {', '.join(details)}[/yellow]")
+            rprint(f"  [yellow]Found existing resources: {resources.summary}[/yellow]")
             delete = typer.confirm(
                 "  Delete existing resources and proceed?",
                 default=True,

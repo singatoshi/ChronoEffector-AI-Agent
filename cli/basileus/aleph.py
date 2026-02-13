@@ -116,6 +116,18 @@ class ExistingResources:
             or self.has_community_flow
         )
 
+    @property
+    def summary(self) -> str:
+        details = []
+        if self.instance_hashes:
+            n = len(self.instance_hashes)
+            details.append(f"{n} instance{'s' if n > 1 else ''}")
+        if self.has_operator_flow:
+            details.append("operator flow")
+        if self.has_community_flow:
+            details.append("community flow")
+        return ", ".join(details)
+
 
 async def check_existing_resources(
     account: ETHAccount, crn: CRNInfo
