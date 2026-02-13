@@ -17,7 +17,7 @@ export const Route = createFileRoute("/")({
 
 const STATUS_CONFIG: Record<AgentStatus, { label: string; color: string; dotClass: string }> = {
   healthy: {
-    label: "Healthy",
+    label: "Active",
     color: "#22c55e",
     dotClass: "bg-[#22c55e] shadow-[0_0_6px_#22c55e]",
   },

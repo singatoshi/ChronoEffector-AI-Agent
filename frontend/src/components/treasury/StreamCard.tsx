@@ -25,12 +25,7 @@ export function StreamCard({
   flowRatePerHour,
   hoursLeft,
 }: StreamCardProps) {
-  const liveBalance = useLiveAlephBalance(alephRaw, flowRatePerSec);
-
-  // Format: keep up to 8 decimal places for the live-ticking display
-  const parts = liveBalance.split(".");
-  const intPart = parts[0];
-  const decPart = parts.length === 2 ? parts[1].slice(0, 8).padEnd(8, "0") : "00000000";
+  const { intRef, decRef } = useLiveAlephBalance(alephRaw, flowRatePerSec, 6);
 
   const hlInfo = hoursLeftLabel(hoursLeft);
   const rateDisplay =
@@ -82,12 +77,15 @@ export function StreamCard({
           className="mt-4 text-3xl font-medium leading-none text-[#fafafa] md:text-4xl"
           style={{
             fontFamily: "var(--font-mono)",
+            fontVariantNumeric: "tabular-nums",
             textShadow: "0 0 20px rgba(245, 158, 11, 0.3), 0 0 40px rgba(245, 158, 11, 0.1)",
           }}
         >
-          <span>{intPart}</span>
+          <span ref={intRef}>0</span>
           <span className="text-[#a1a1aa]">.</span>
-          <span className="text-[#d4d4d8]">{decPart}</span>
+          <span ref={decRef} className="text-[#d4d4d8]">
+            000000
+          </span>
         </p>
 
         {/* Flow rate + hours left */}

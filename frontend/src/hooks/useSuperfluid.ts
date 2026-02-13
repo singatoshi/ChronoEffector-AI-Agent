@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getOutflows, type SuperfluidStream } from "../lib/superfluid";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { formatUnits } from "viem";
 
 export interface StreamInfo {
@@ -30,19 +30,23 @@ export function useSuperfluidStreams(address: `0x${string}` | undefined) {
 
 /**
  * Live-ticking ALEPH balance using requestAnimationFrame.
- * Takes a snapshot balance + flow rate and ticks down client-side.
+ * Writes directly to DOM refs to avoid React re-renders at 60fps.
  */
 export function useLiveAlephBalance(
   snapshotBalance: bigint | undefined,
   flowRatePerSec: bigint | undefined,
-): string {
-  const [display, setDisplay] = useState("0");
+  decimals: number = 6,
+): {
+  intRef: React.RefObject<HTMLSpanElement | null>;
+  decRef: React.RefObject<HTMLSpanElement | null>;
+} {
+  const intRef = useRef<HTMLSpanElement | null>(null);
+  const decRef = useRef<HTMLSpanElement | null>(null);
   const startTimeRef = useRef<number>(0);
   const startBalRef = useRef<bigint>(0n);
   const rateRef = useRef<bigint>(0n);
   const rafRef = useRef<number>(0);
 
-  // Reset when snapshot changes
   useEffect(() => {
     if (snapshotBalance === undefined || flowRatePerSec === undefined) return;
     startBalRef.current = snapshotBalance;
@@ -51,12 +55,19 @@ export function useLiveAlephBalance(
   }, [snapshotBalance, flowRatePerSec]);
 
   const tick = useCallback(() => {
-    const elapsed = (performance.now() - startTimeRef.current) / 1000;
-    const drained = rateRef.current * BigInt(Math.floor(elapsed));
+    const elapsedMs = BigInt(Math.floor(performance.now() - startTimeRef.current));
+    const drained = (rateRef.current * elapsedMs) / 1000n;
     const current = startBalRef.current - drained;
-    setDisplay(formatUnits(current > 0n ? current : 0n, 18));
+    const formatted = formatUnits(current > 0n ? current : 0n, 18);
+    const dot = formatted.indexOf(".");
+    if (intRef.current) intRef.current.textContent = dot >= 0 ? formatted.slice(0, dot) : formatted;
+    if (decRef.current)
+      decRef.current.textContent =
+        dot >= 0
+          ? formatted.slice(dot + 1, dot + 1 + decimals).padEnd(decimals, "0")
+          : "0".repeat(decimals);
     rafRef.current = requestAnimationFrame(tick);
-  }, []);
+  }, [decimals]);
 
   useEffect(() => {
     if (snapshotBalance === undefined || flowRatePerSec === undefined) return;
@@ -64,5 +75,5 @@ export function useLiveAlephBalance(
     return () => cancelAnimationFrame(rafRef.current);
   }, [snapshotBalance, flowRatePerSec, tick]);
 
-  return display;
+  return { intRef, decRef };
 }

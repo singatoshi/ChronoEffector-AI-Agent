@@ -61,19 +61,29 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
           <span className="text-sm font-medium text-[#fafafa]">{methodLabel}</span>
           {!isSuperfluid && !isRegistrar && counterparty && (
             <span className="text-xs text-[#71717a]" style={{ fontFamily: "var(--font-mono)" }}>
-              {isSent ? "to" : "from"} {truncateAddress(counterparty)}
+              {isSent ? "to" : "from"}{" "}
+              <a
+                href={`https://basescan.org/address/${counterparty}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#71717a] transition-colors hover:text-[#a1a1aa] hover:underline"
+              >
+                {truncateAddress(counterparty)}
+              </a>
             </span>
           )}
         </div>
       </div>
 
       {/* Value */}
-      <div className="shrink-0 text-right">
-        <span className="text-sm text-[#d4d4d8]" style={{ fontFamily: "var(--font-mono)" }}>
-          {valueDisplay}
-        </span>
-        <span className="ml-1 text-xs text-[#71717a]">{symbolDisplay}</span>
-      </div>
+      {valueDisplay !== "0" && valueDisplay !== "0.0000" && (
+        <div className="shrink-0 text-right">
+          <span className="text-sm text-[#d4d4d8]" style={{ fontFamily: "var(--font-mono)" }}>
+            {valueDisplay}
+          </span>
+          <span className="ml-1 text-xs text-[#71717a]">{symbolDisplay}</span>
+        </div>
+      )}
 
       {/* Timestamp */}
       <span className="hidden shrink-0 text-xs text-[#71717a] sm:block">
