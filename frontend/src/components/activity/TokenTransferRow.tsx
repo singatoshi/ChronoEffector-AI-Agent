@@ -1,4 +1,5 @@
 import type { BlockscoutTokenTransferItem } from "../../lib/blockscout";
+import { BLOCKRUN_X402 } from "../../lib/contracts";
 import { relativeTime, truncateAddress } from "../../lib/format";
 
 interface TokenTransferRowProps {
@@ -9,39 +10,48 @@ interface TokenTransferRowProps {
 export function TokenTransferRow({ transfer, agentAddress }: TokenTransferRowProps) {
   const isSent = transfer.from.hash.toLowerCase() === agentAddress.toLowerCase();
   const counterparty = isSent ? transfer.to.hash : transfer.from.hash;
+  const isBlockrun = transfer.to.hash.toLowerCase() === BLOCKRUN_X402.toLowerCase();
 
   const decimals = parseInt(transfer.total.decimals, 10);
   const raw = parseFloat(transfer.total.value) / 10 ** decimals;
   const valueDisplay = raw < 0.001 && raw > 0 ? "< 0.001" : raw.toFixed(4);
 
+  const label = isBlockrun
+    ? "x402 AI inference"
+    : `${isSent ? "Send" : "Receive"} ${transfer.token.symbol}`;
+
   return (
     <div className="group flex items-center gap-3 border-b border-subtle px-3 py-3 sm:px-4 transition-colors hover:bg-elevated">
-      {/* Direction icon */}
-      <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
-          isSent ? "bg-rose-500/10 text-rose-500" : "bg-green-500/10 text-green-500"
-        }`}
-      >
-        {isSent ? "\u2191" : "\u2193"}
-      </span>
+      {/* Icon */}
+      {isBlockrun ? (
+        <img src="/icons/blockrun.png" alt="Blockrun" className="h-7 w-7 shrink-0 rounded-md" />
+      ) : (
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+            isSent ? "bg-rose-500/10 text-rose-500" : "bg-green-500/10 text-green-500"
+          }`}
+        >
+          {isSent ? "\u2191" : "\u2193"}
+        </span>
+      )}
 
       {/* Main content */}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-zinc-50">
-            {isSent ? "Send" : "Receive"} {transfer.token.symbol}
-          </span>
-          <span className="text-xs text-zinc-500" style={{ fontFamily: "var(--font-mono)" }}>
-            {isSent ? "to" : "from"}{" "}
-            <a
-              href={`https://basescan.org/address/${counterparty}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-zinc-500 transition-colors hover:text-zinc-400 hover:underline"
-            >
-              {truncateAddress(counterparty)}
-            </a>
-          </span>
+          <span className="text-sm font-medium text-zinc-50">{label}</span>
+          {!isBlockrun && (
+            <span className="text-xs text-zinc-500" style={{ fontFamily: "var(--font-mono)" }}>
+              {isSent ? "to" : "from"}{" "}
+              <a
+                href={`https://basescan.org/address/${counterparty}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-zinc-500 transition-colors hover:text-zinc-400 hover:underline"
+              >
+                {truncateAddress(counterparty)}
+              </a>
+            </span>
+          )}
         </div>
       </div>
 
