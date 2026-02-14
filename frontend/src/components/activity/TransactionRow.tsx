@@ -1,6 +1,6 @@
 import type { BlockscoutTx } from "../../lib/blockscout";
 import { relativeTime, truncateAddress, formatWeiValue } from "../../lib/format";
-import { SUPERFLUID_CFAV1_FORWARDER, L2_REGISTRAR } from "../../lib/contracts";
+import { SUPERFLUID_CFAV1_FORWARDER, L2_REGISTRAR, L2_REGISTRY } from "../../lib/contracts";
 
 interface TransactionRowProps {
   tx: BlockscoutTx;
@@ -29,12 +29,14 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
   const toAddr = tx.to?.hash.toLowerCase() ?? "";
   const isSuperfluid = toAddr === SUPERFLUID_CFAV1_FORWARDER.toLowerCase();
   const isRegistrar = toAddr === L2_REGISTRAR.toLowerCase();
+  const isRegistry = toAddr === L2_REGISTRY.toLowerCase();
 
   let methodLabel: string;
   if (isSuperfluid && tx.method === "createFlow") methodLabel = "Start ALEPH stream";
   else if (isSuperfluid && tx.method === "deleteFlow") methodLabel = "Stop ALEPH stream";
   else if (isSuperfluid && tx.method === "updateFlow") methodLabel = "Update ALEPH stream";
   else if (isRegistrar && tx.method === "register") methodLabel = "Register ENS name";
+  else if (isRegistry && tx.method === "setContenthash") methodLabel = "Set ENS content hash";
   else methodLabel = tx.method || "Transfer";
 
   return (
@@ -42,7 +44,7 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
       {/* Icon */}
       {isSuperfluid ? (
         <img src="/icons/aleph.png" alt="ALEPH" className="h-7 w-7 shrink-0 rounded-md" />
-      ) : isRegistrar ? (
+      ) : isRegistrar || isRegistry ? (
         <img src="/icons/ens.jpg" alt="ENS" className="h-7 w-7 shrink-0 rounded-md" />
       ) : (
         <span
@@ -59,7 +61,7 @@ export function TransactionRow({ tx, agentAddress }: TransactionRowProps) {
         {/* Label + context */}
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-[#fafafa]">{methodLabel}</span>
-          {!isSuperfluid && !isRegistrar && counterparty && (
+          {!isSuperfluid && !isRegistrar && !isRegistry && counterparty && (
             <span className="text-xs text-[#71717a]" style={{ fontFamily: "var(--font-mono)" }}>
               {isSent ? "to" : "from"}{" "}
               <a
