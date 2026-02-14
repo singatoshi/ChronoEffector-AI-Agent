@@ -1,29 +1,32 @@
 import { LLMClient, type ChatMessage, type Tool } from "@blockrun/llm";
 import { type Hex } from "viem";
 import { executeTool } from "./tools.js";
+import type { ToolExecution } from "./aleph-publisher.js";
 
 const MAX_TOOL_ROUNDS = 10;
+
+export interface AgentLoopResult {
+  reasoning: string;
+  toolExecutions: ToolExecution[];
+}
 
 export function createLLMClient(privateKey: Hex) {
   return new LLMClient({ privateKey });
 }
 
-/**
- * Agentic loop: calls LLM with tools, executes any tool calls,
- * feeds results back, repeats until the model stops or max rounds hit.
- * Returns the final text response.
- */
 export async function runAgentLoop(
   client: LLMClient,
   model: string,
   systemPrompt: string,
   userPrompt: string,
   tools: Tool[],
-): Promise<string> {
+): Promise<AgentLoopResult> {
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
   ];
+
+  const toolExecutions: ToolExecution[] = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const result = await client.chatCompletion(model, messages, {
@@ -34,25 +37,39 @@ export async function runAgentLoop(
     const choice = result.choices[0];
     const msg = choice.message;
 
-    // Append assistant message to history
     messages.push({
       role: "assistant",
       content: msg.content ?? null,
       tool_calls: msg.tool_calls,
     });
 
-    // If no tool calls, we're done
     if (choice.finish_reason !== "tool_calls" || !msg.tool_calls?.length) {
-      return msg.content ?? "";
+      return { reasoning: msg.content ?? "", toolExecutions };
     }
 
-    // Execute each tool call and append results
     for (const toolCall of msg.tool_calls) {
       const { name, arguments: argsJson } = toolCall.function;
       console.log(`[tool] calling ${name}(${argsJson})`);
 
       const toolResult = await executeTool(name, argsJson);
       console.log(`[tool] ${name} -> ${toolResult.slice(0, 200)}`);
+
+      let args: Record<string, string> | undefined;
+      try {
+        args = JSON.parse(argsJson);
+      } catch {
+        args = undefined;
+      }
+
+      const txMatch = toolResult.match(/[Hh]ash:?\s*(0x[a-fA-F0-9]{64})/);
+      const txHash = txMatch?.[1];
+
+      toolExecutions.push({
+        name,
+        args,
+        result: toolResult,
+        txHash,
+      });
 
       messages.push({
         role: "tool",
@@ -62,8 +79,7 @@ export async function runAgentLoop(
     }
   }
 
-  // Exhausted rounds - get final response without tools
   console.log("[llm] max tool rounds reached, getting final response");
   const final = await client.chatCompletion(model, messages);
-  return final.choices[0].message.content ?? "";
+  return { reasoning: final.choices[0].message.content ?? "", toolExecutions };
 }

@@ -1,5 +1,7 @@
 import { config as dotenvConfig } from "dotenv";
 import { existsSync } from "fs";
+import { type Hex } from "viem";
+import { base } from "viem/chains";
 
 // Load env files in order: .env (base), .env.local (local overrides), .env.prod (production/deployed)
 // Later files override earlier ones
@@ -8,8 +10,6 @@ for (const envFile of [".env", ".env.local", ".env.prod"]) {
     dotenvConfig({ path: envFile, override: true });
   }
 }
-import { type Hex } from "viem";
-import { base, baseSepolia } from "viem/chains";
 
 function requireEnv(name: string): string {
   const val = process.env[name];
@@ -18,9 +18,11 @@ function requireEnv(name: string): string {
 }
 
 export const config = {
-  privateKey: requireEnv("BASE_CHAIN_WALLET_KEY") as Hex,
-  chain: process.env.NETWORK === "base" ? base : baseSepolia,
-  cycleIntervalMs: parseInt(process.env.CYCLE_INTERVAL_MS || "60000"),
-  llmModel: process.env.LLM_MODEL || "anthropic/claude-sonnet-4",
+  privateKey: requireEnv("WALLET_PRIVATE_KEY") as Hex,
+  chain: base,
+  cycleIntervalMs: parseInt(process.env.CYCLE_INTERVAL_MS || "900000"),
+  heartbeatModel: process.env.LLM_HEARTBEAT_MODEL || "openai/gpt-oss-120b",
+  strategyModel: process.env.LLM_STRATEGY_MODEL || "anthropic/claude-sonnet-4",
+  usdcSafetyMargin: parseFloat(process.env.USDC_SAFETY_MARGIN || "5"),
   builderCode: process.env.BUILDER_CODE || undefined,
 } as const;

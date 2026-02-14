@@ -13,7 +13,7 @@ import {
   UNISWAP_ALEPH_POOL,
   uniswapV3PoolAbi,
   uniswapRouterAbi,
-} from "./aleph.js";
+} from "./constants.js";
 
 const publicClient = createPublicClient({
   chain: base,
