@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import { detectAgentLabel } from "../../lib/domain";
 
 /** SVG crown icon — Basileus = sovereign */
 function CrownIcon({ className }: { className?: string }) {
@@ -25,6 +26,10 @@ export function Header() {
   const agentMatch = pathname.match(/^\/agent\/([^/]+)/);
   const agentLabel = agentMatch?.[1] ?? null;
 
+  // On subdomain, add ?noredirect so clicking home doesn't bounce back
+  const isSubdomain = !!detectAgentLabel();
+  const homeSearch = isSubdomain ? { noredirect: "" } : undefined;
+
   return (
     <header className="sticky top-0 z-50 border-b border-[#262626] bg-[#0a0a0a]/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
@@ -33,6 +38,7 @@ export function Header() {
           <>
             <Link
               to="/"
+              search={homeSearch}
               className="flex items-center gap-2 text-[#a1a1aa] transition-colors hover:text-[#fafafa]"
             >
               <CrownIcon className="h-4 w-4" />
@@ -59,7 +65,7 @@ export function Header() {
             </span>
           </>
         ) : (
-          <Link to="/" className="flex items-center gap-2.5">
+          <Link to="/" search={homeSearch} className="flex items-center gap-2.5">
             <CrownIcon className="h-5 w-5 text-[#fafafa]" />
             <span
               className="text-xl font-bold tracking-tight text-[#fafafa]"

@@ -6,7 +6,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/")({
-  beforeLoad: () => {
+  beforeLoad: ({ location }) => {
+    if ("noredirect" in (location.search as Record<string, unknown>)) return;
     const label = detectAgentLabel();
     if (label) throw redirect({ to: "/agent/$label", params: { label } });
   },
