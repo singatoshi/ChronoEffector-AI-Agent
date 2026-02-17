@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useActivities } from "../../hooks/useActivities";
 import { useTokenTransfers } from "../../hooks/useTokenTransfers";
 import { useTransactions } from "../../hooks/useTransactions";
+import { ActivityGroupRow } from "./ActivityGroupRow";
 import { ActivityRow } from "./ActivityRow";
 import { FeedFilters, type FilterValue } from "./FeedFilters";
 import { FeedGroupRow } from "./FeedGroupRow";
@@ -144,6 +145,8 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
                 <FeedItemRow key={item.item.key} item={item.item} />
               ) : item.kind === "group" ? (
                 <FeedGroupRow key={item.items[0].key} items={item.items} />
+              ) : item.kind === "activityGroup" ? (
+                <ActivityGroupRow key={`actg-${item.activities[0].id}`} activities={item.activities} />
               ) : (
                 <ActivityRow key={`act-${item.data.id}`} activity={item.data} />
               ),
