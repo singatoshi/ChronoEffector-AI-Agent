@@ -27,9 +27,9 @@ const typeConfig: Record<
   },
   strategy: {
     label: "Strategy",
-    colorClass: "text-amber-500",
-    dotClass: "bg-amber-500 shadow-[0_0_6px_#f59e0b]",
-    bgClass: "bg-amber-500/10",
+    colorClass: "text-violet-400",
+    dotClass: "bg-violet-400 shadow-[0_0_6px_#a78bfa]",
+    bgClass: "bg-violet-400/10",
   },
   error: {
     label: "Error",

@@ -22,19 +22,31 @@ export function groupFeedItems(
     }
   }
 
+  // Group activities by cycleId, sorted chronologically within each group
   if (filter !== "transactions") {
+    const byCycle = new Map<string, AgentActivity[]>();
     for (const act of activities) {
-      merged.push({
-        sort: new Date(act.timestamp).getTime(),
-        groupKey: `cycle-${act.cycleId}`,
-        di: { kind: "activity", data: act },
-      });
+      const key = `cycle-${act.cycleId}`;
+      const arr = byCycle.get(key);
+      if (arr) arr.push(act);
+      else byCycle.set(key, [act]);
+    }
+    for (const [key, acts] of byCycle) {
+      // Sort within group: oldest first
+      acts.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      // Use latest timestamp for feed position
+      const latest = new Date(acts[acts.length - 1].timestamp).getTime();
+      const di: DisplayItem =
+        acts.length === 1
+          ? { kind: "activity", data: acts[0] }
+          : { kind: "activityGroup", activities: acts };
+      merged.push({ sort: latest, groupKey: key, di });
     }
   }
 
   merged.sort((a, b) => b.sort - a.sort);
 
-  // Group adjacent items with matching groupKey
+  // Group adjacent tx items with matching groupKey
   const result: { groupKey: string; di: DisplayItem }[] = [];
   for (const { groupKey, di } of merged) {
     const prev = result[result.length - 1];
@@ -42,16 +54,10 @@ export function groupFeedItems(
       result.push({ groupKey, di });
       continue;
     }
-    // Merge tx items
     if (di.kind === "single" && prev.di.kind === "single") {
       prev.di = { kind: "group", items: [prev.di.item, di.item] };
     } else if (di.kind === "single" && prev.di.kind === "group") {
       prev.di.items.push(di.item);
-      // Merge activity items
-    } else if (di.kind === "activity" && prev.di.kind === "activity") {
-      prev.di = { kind: "activityGroup", activities: [prev.di.data, di.data] };
-    } else if (di.kind === "activity" && prev.di.kind === "activityGroup") {
-      prev.di.activities.push(di.data);
     } else {
       result.push({ groupKey, di });
     }
