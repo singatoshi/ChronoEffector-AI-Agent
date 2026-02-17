@@ -77,7 +77,9 @@ function ToolAccordionItem({ tool }: { tool: ToolExecution }) {
         <div className="px-2 pb-2 pl-7 space-y-1.5">
           {tool.args && (
             <div>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">Params</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+                Params
+              </span>
               <pre className="mt-0.5 whitespace-pre-wrap text-[10px] text-zinc-600 leading-relaxed">
                 {JSON.stringify(tool.args, null, 2)}
               </pre>
@@ -85,7 +87,9 @@ function ToolAccordionItem({ tool }: { tool: ToolExecution }) {
           )}
           {tool.result && (
             <div>
-              <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">Return</span>
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-zinc-500">
+                Return
+              </span>
               <pre className="mt-0.5 whitespace-pre-wrap text-[10px] text-zinc-600 leading-relaxed max-h-32 overflow-y-auto">
                 {tool.result.length > 300 ? `${tool.result.slice(0, 300)}…` : tool.result}
               </pre>
@@ -104,7 +108,9 @@ export function ActivityRow({ activity, nested }: ActivityRowProps) {
   const txCount = activity.txHashes?.length ?? 0;
 
   return (
-    <div className={`group ${nested ? "" : "border-b border-subtle"} px-3 py-3 sm:px-4 transition-colors hover:bg-elevated`}>
+    <div
+      className={`group ${nested ? "" : "border-b border-subtle"} px-3 py-3 sm:px-4 transition-colors hover:bg-elevated`}
+    >
       {/* Main row */}
       <div className="flex items-start gap-3">
         {/* Type badge */}

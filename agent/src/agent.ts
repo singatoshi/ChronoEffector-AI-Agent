@@ -74,7 +74,7 @@ Check your ALEPH compute balance and ensure survival. Then evaluate if strategy 
   // --- Phase 1: Heartbeat (cheap model — survival + strategy trigger) ---
   console.log(`[heartbeat] Running with ${config.heartbeatModel}...`);
   let reasoning = "";
-  let strategyTrigger: { availableUsdc: string; reason: string } | null = null;
+  let strategyTrigger: { availableUsdc: string } | null = null;
 
   try {
     const result = await runAgentLoop(
@@ -88,17 +88,14 @@ Check your ALEPH compute balance and ensure survival. Then evaluate if strategy 
     console.log(`[heartbeat] ${reasoning}`);
 
     // Check if heartbeat triggered strategy
-    const triggerCall = result.toolExecutions.find((t) => t.name === "trigger_strategy");
+    const triggerCall = result.toolExecutions.find((t) => t.name.endsWith("trigger_strategy"));
     if (triggerCall?.args) {
       strategyTrigger = {
         availableUsdc: triggerCall.args.availableUsdc ?? "0",
-        reason: triggerCall.args.reason ?? "",
       };
     }
 
-    // Publish heartbeat (exclude the trigger_strategy tool from published tools)
-    const heartbeatExecs = result.toolExecutions.filter((t) => t.name !== "trigger_strategy");
-    await publishPhase("heartbeat", config.heartbeatModel, heartbeatExecs, reasoning);
+    await publishPhase("heartbeat", config.heartbeatModel, result.toolExecutions, reasoning);
   } catch (err) {
     reasoning = `Error: ${err instanceof Error ? err.message : String(err)}`;
     console.error(`[heartbeat] ${reasoning}`);
@@ -110,13 +107,10 @@ Check your ALEPH compute balance and ensure survival. Then evaluate if strategy 
 
   // --- Phase 2: Strategy (smarter model — only if heartbeat triggered it) ---
   if (strategyTrigger) {
-    console.log(
-      `[strategy] Triggered — ${strategyTrigger.availableUsdc} USDC available. Reason: ${strategyTrigger.reason}`,
-    );
+    console.log(`[strategy] Triggered — ${strategyTrigger.availableUsdc} USDC available`);
     console.log(`[strategy] Running with ${config.strategyModel}...`);
     try {
       const strategyUserPrompt = `Available USDC for deployment: ${strategyTrigger.availableUsdc}
-Heartbeat reasoning: ${strategyTrigger.reason}
 Wallet: ${balances.address} (${balances.chainName})
 ETH: ${balances.ethBalance}
 

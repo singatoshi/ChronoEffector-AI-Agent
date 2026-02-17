@@ -10,21 +10,9 @@ export const basileusTriggerProvider = customActionProvider<EvmWalletProvider>([
       availableUsdc: z
         .string()
         .describe("Amount of USDC available for deployment (after safety margin)"),
-      reason: z
-        .string()
-        .describe(
-          "Why you think it is worth running strategy analysis right now (e.g. market conditions, balance size, etc.)",
-        ),
     }),
-    invoke: async (
-      _walletProvider: EvmWalletProvider,
-      args: { availableUsdc: string; reason: string },
-    ) => {
-      return JSON.stringify({
-        triggered: true,
-        availableUsdc: args.availableUsdc,
-        reason: args.reason,
-      });
+    invoke: async (_walletProvider: EvmWalletProvider, args: { availableUsdc: string }) => {
+      return JSON.stringify({ triggered: true, availableUsdc: args.availableUsdc });
     },
   },
 ]);

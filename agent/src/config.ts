@@ -21,7 +21,7 @@ export const config = {
   privateKey: requireEnv("WALLET_PRIVATE_KEY") as Hex,
   chain: base,
   cycleIntervalMs: parseInt(process.env.CYCLE_INTERVAL_MS || "900000"),
-  heartbeatModel: process.env.LLM_HEARTBEAT_MODEL || "openai/gpt-oss-120b",
+  heartbeatModel: process.env.LLM_HEARTBEAT_MODEL || "nvidia/gpt-oss-120b",
   strategyModel: process.env.LLM_STRATEGY_MODEL || "anthropic/claude-sonnet-4",
   usdcSafetyMargin: parseFloat(process.env.USDC_SAFETY_MARGIN || "5"),
   builderCode: process.env.BUILDER_CODE || undefined,

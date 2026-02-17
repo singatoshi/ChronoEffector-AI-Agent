@@ -68,9 +68,7 @@ export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }
           </svg>
         </div>
 
-        <span className="shrink-0 text-xs text-zinc-500">
-          {relativeTime(first.timestamp)}
-        </span>
+        <span className="shrink-0 text-xs text-zinc-500">{relativeTime(first.timestamp)}</span>
       </button>
 
       {expanded && (

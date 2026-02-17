@@ -146,7 +146,10 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
               ) : item.kind === "group" ? (
                 <FeedGroupRow key={item.items[0].key} items={item.items} />
               ) : item.kind === "activityGroup" ? (
-                <ActivityGroupRow key={`actg-${item.activities[0].id}`} activities={item.activities} />
+                <ActivityGroupRow
+                  key={`actg-${item.activities[0].id}`}
+                  activities={item.activities}
+                />
               ) : (
                 <ActivityRow key={`act-${item.data.id}`} activity={item.data} />
               ),
