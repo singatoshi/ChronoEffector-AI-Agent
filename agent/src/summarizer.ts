@@ -21,9 +21,7 @@ Reasoning: ${reasoning.slice(0, 1000)}
 ${toolSummary ? `Tools called: ${toolSummary}` : "No tools called."}`;
 
   try {
-    const result = await client.chatCompletion(model, [
-      { role: "user", content: prompt },
-    ]);
+    const result = await client.chatCompletion(model, [{ role: "user", content: prompt }]);
     return result.choices[0].message.content ?? reasoning.slice(0, 200);
   } catch (err) {
     console.warn(`[summarizer] Failed to summarize ${phaseType}:`, err);

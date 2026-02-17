@@ -25,4 +25,5 @@ export const config = {
   strategyModel: process.env.LLM_STRATEGY_MODEL || "anthropic/claude-sonnet-4",
   usdcSafetyMargin: parseFloat(process.env.USDC_SAFETY_MARGIN || "5"),
   builderCode: process.env.BUILDER_CODE || undefined,
+  rpcUrl: process.env.RPC_URL || undefined,
 } as const;

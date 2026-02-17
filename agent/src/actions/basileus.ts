@@ -9,7 +9,9 @@ export const basileusTriggerProvider = customActionProvider<EvmWalletProvider>([
     schema: z.object({
       reason: z
         .string()
-        .describe("What is unhealthy and needs fixing (e.g. 'ALEPH hours < 24, need to swap ETH to ALEPH')"),
+        .describe(
+          "What is unhealthy and needs fixing (e.g. 'ALEPH hours < 24, need to swap ETH to ALEPH')",
+        ),
       idleUsdc: z.string().describe("Current idle USDC balance"),
       compoundUsdc: z.string().describe("Current USDC supplied in Compound"),
       ethBalance: z.string().describe("Current ETH balance"),

@@ -1,13 +1,18 @@
 import { type Tool } from "@blockrun/llm";
-import { AgentKit, walletActionProvider, erc20ActionProvider, compoundActionProvider } from "@coinbase/agentkit";
-import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
-import { createLLMClient, runAgentLoop } from "./llm.js";
-import { actionsToTools } from "./tools.js";
-import { config } from "./config.js";
+import {
+  AgentKit,
+  compoundActionProvider,
+  erc20ActionProvider,
+  walletActionProvider,
+} from "@coinbase/agentkit";
 import { alephActionProvider } from "./actions/aleph.js";
 import { basileusTriggerProvider } from "./actions/basileus.js";
 import { initAlephPublisher, publishActivity, type ToolExecution } from "./aleph-publisher.js";
+import { config } from "./config.js";
+import { createLLMClient, runAgentLoop } from "./llm.js";
 import { summarizePhase } from "./summarizer.js";
+import { actionsToTools } from "./tools.js";
+import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
 
 const INVENTORY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
 You pay for compute via an ALEPH Superfluid stream. You pay for inference with USDC via x402.
@@ -20,7 +25,7 @@ Your job this phase: CHECK HEALTH + CAPITAL INVENTORY.
 
 Then evaluate:
 - ALEPH healthy? (hours_left >= 24)
-- ETH sufficient for gas? (>= 0.001 ETH)
+- ETH sufficient for gas? (>= 0.0001 ETH)
 - Idle USDC sufficient for inference margin? (>= ${config.usdcSafetyMargin} USDC, considering you can withdraw from Compound if needed)
 
 If UNHEALTHY: call trigger_survival with what's wrong + all balances
@@ -41,8 +46,9 @@ Fix the issues reported. Be efficient — do only what's needed.`;
 const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
 You have excess capital to deploy.
 
-For now, your strategy is simple: supply idle USDC to Compound to earn yield.
-Use compound_supply with assetId "usdc" and the amount of idle USDC available (not the Compound amount — that's already deployed).
+For now, your strategy is simple: supply excess USDC to Compound to earn yield.
+IMPORTANT: You MUST keep ${config.usdcSafetyMargin} USDC idle in the wallet for inference costs. Only supply the EXCESS amount to Compound — never the full idle balance.
+Use compound_supply with assetId "usdc" and the EXACT excess amount provided.
 
 Be concise. Execute the supply.`;
 
@@ -169,10 +175,10 @@ Fix the issue.`;
   } else if (trigger?.kind === "strategy") {
     console.log(`[strategy] Triggered — excess: ${trigger.args.excessAmount ?? "0"} USDC`);
     try {
-      const userPrompt = `Excess capital: ${trigger.args.excessAmount ?? "0"} USDC
-Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Already in Compound: ${trigger.args.compoundUsdc ?? "?"}
+      const userPrompt = `Amount to supply to Compound: ${trigger.args.excessAmount ?? "0"} USDC (this is the excess — safety margin already subtracted)
+Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Already in Compound: ${trigger.args.compoundUsdc ?? "?"} | Safety margin: ${config.usdcSafetyMargin}
 
-Deploy idle USDC to Compound.`;
+Supply exactly ${trigger.args.excessAmount ?? "0"} USDC to Compound. Do NOT supply more.`;
 
       const result = await runAgentLoop(
         llmClient,
@@ -245,8 +251,8 @@ export async function startAgent() {
 
   const wallet = await createAgentWallet(config.privateKey, config.chain, config.builderCode);
 
-  // Per-phase tool sets
-  const inventoryKit = await AgentKit.from({
+  // All actions from all providers, then filter per phase
+  const allKit = await AgentKit.from({
     walletProvider: wallet.provider,
     actionProviders: [
       walletActionProvider(),
@@ -257,32 +263,32 @@ export async function startAgent() {
     ],
   });
 
-  const survivalKit = await AgentKit.from({
-    walletProvider: wallet.provider,
-    actionProviders: [
-      walletActionProvider(),
-      erc20ActionProvider(),
-      alephActionProvider,
-      compoundActionProvider(),
-    ],
-  });
+  const allActions = allKit.getActions();
+  const pick = (names: string[]) => allActions.filter((a) => names.some((n) => a.name.endsWith(n)));
 
-  const strategyKit = await AgentKit.from({
-    walletProvider: wallet.provider,
-    actionProviders: [
-      walletActionProvider(),
-      erc20ActionProvider(),
-      compoundActionProvider(),
-    ],
-  });
+  // Inventory: read-only checks + triggers (no transfers, no supply)
+  const inventoryActions = pick([
+    "get_aleph_info",
+    "get_portfolio",
+    "trigger_survival",
+    "trigger_strategy",
+  ]);
+
+  // Survival: fix resource issues (swap ALEPH, withdraw from Compound)
+  const survivalActions = pick(["swap_eth_to_aleph", "withdraw", "approve", "get_balance"]);
+
+  // Strategy: deploy capital (supply to Compound)
+  const strategyActions = pick(["supply", "approve", "get_balance"]);
 
   const toolSets = {
-    inventory: actionsToTools(inventoryKit.getActions()),
-    survival: actionsToTools(survivalKit.getActions()),
-    strategy: actionsToTools(strategyKit.getActions()),
+    inventory: actionsToTools(inventoryActions),
+    survival: actionsToTools(survivalActions),
+    strategy: actionsToTools(strategyActions),
   };
 
-  console.log(`[agentkit] Inventory: ${toolSets.inventory.length} tools | Survival: ${toolSets.survival.length} tools | Strategy: ${toolSets.strategy.length} tools`);
+  console.log(
+    `[agentkit] Inventory: ${toolSets.inventory.length} tools | Survival: ${toolSets.survival.length} tools | Strategy: ${toolSets.strategy.length} tools`,
+  );
 
   const llmClient = createLLMClient(config.privateKey);
 

@@ -36,7 +36,12 @@ const typeConfig: Record<
 export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }) {
   const [expanded, setExpanded] = useState(false);
   // Show the most significant phase's badge (strategy > survival > error > inventory)
-  const phasePriority: Record<string, number> = { strategy: 0, survival: 1, error: 2, inventory: 3 };
+  const phasePriority: Record<string, number> = {
+    strategy: 0,
+    survival: 1,
+    error: 2,
+    inventory: 3,
+  };
   const primary = [...activities].sort(
     (a, b) => (phasePriority[a.type] ?? 9) - (phasePriority[b.type] ?? 9),
   )[0];
@@ -64,7 +69,10 @@ export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }
         </span>
 
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <p className="text-sm text-zinc-300 line-clamp-1 flex-1" style={{ fontFamily: "var(--font-body)" }}>
+          <p
+            className="text-sm text-zinc-300 line-clamp-1 flex-1"
+            style={{ fontFamily: "var(--font-body)" }}
+          >
             {last.summary}
           </p>
           <span className="flex h-5 items-center rounded-md bg-neutral-800 px-1.5 text-[10px] font-medium text-zinc-400">

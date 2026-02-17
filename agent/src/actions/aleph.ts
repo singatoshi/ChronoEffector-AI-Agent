@@ -14,10 +14,11 @@ import {
   uniswapV3PoolAbi,
   uniswapRouterAbi,
 } from "./constants.js";
+import { config } from "../config.js";
 
 const publicClient = createPublicClient({
   chain: base,
-  transport: http(),
+  transport: http(config.rpcUrl),
 });
 
 const balanceOfAbi = [
