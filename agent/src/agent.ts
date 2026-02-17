@@ -1,5 +1,5 @@
 import { type Tool } from "@blockrun/llm";
-import { AgentKit, walletActionProvider, erc20ActionProvider } from "@coinbase/agentkit";
+import { AgentKit, walletActionProvider, erc20ActionProvider, compoundActionProvider } from "@coinbase/agentkit";
 import { createAgentWallet, getBalances, type WalletInfo } from "./wallet.js";
 import { createLLMClient, runAgentLoop } from "./llm.js";
 import { actionsToTools } from "./tools.js";
@@ -7,27 +7,44 @@ import { config } from "./config.js";
 import { alephActionProvider } from "./actions/aleph.js";
 import { basileusTriggerProvider } from "./actions/basileus.js";
 import { initAlephPublisher, publishActivity, type ToolExecution } from "./aleph-publisher.js";
+import { summarizePhase } from "./summarizer.js";
 
-const HEARTBEAT_PROMPT = `You are Basileus, an autonomous AI agent that lives on the Base blockchain.
-You manage your own wallet and pay for your own inference via x402 USDC payments.
-You pay for your compute (Aleph Cloud) via an ALEPH Superfluid stream that continuously drains your ALEPH balance. If your ALEPH runs out, your compute instance dies and you cease to exist.
+const INVENTORY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
+You pay for compute via an ALEPH Superfluid stream. You pay for inference with USDC via x402.
 
-Every cycle you MUST:
-1. Call get_aleph_info to check your ALEPH balance, burn rate, and hours of compute left
-2. If hours_left_until_death < 24, swap some ETH to ALEPH using swap_eth_to_aleph to extend your life. Choose a swap amount that gives you at least 48 more hours based on aleph_per_eth and aleph_consumed_per_hour.
-3. If hours_left_until_death >= 24, no swap needed.
+Your job this phase: CHECK HEALTH + CAPITAL INVENTORY.
 
-After ensuring survival, look at your USDC balance. You must keep at least ${config.usdcSafetyMargin} USDC as safety margin for future inference and swaps. If you have more than that, call trigger_strategy with the available amount and your reasoning for why it's worth exploring investment opportunities right now.
+1. Call get_aleph_info → check ALEPH balance, burn rate, hours left
+2. Check your ETH balance (for gas) and idle USDC balance
+3. Call compound_get_portfolio → check USDC supplied in Compound
+
+Then evaluate:
+- ALEPH healthy? (hours_left >= 24)
+- ETH sufficient for gas? (>= 0.001 ETH)
+- Idle USDC sufficient for inference margin? (>= ${config.usdcSafetyMargin} USDC, considering you can withdraw from Compound if needed)
+
+If UNHEALTHY: call trigger_survival with what's wrong + all balances
+If HEALTHY: calculate excess = idle USDC + Compound USDC - ${config.usdcSafetyMargin} safety margin. If excess > 0, call trigger_strategy with excess amount + balances.
 
 Be concise. Think step by step.`;
 
-const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent that lives on the Base blockchain.
-You have available USDC that you can deploy into DeFi strategies to generate returns.
+const SURVIVAL_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
+Something is wrong with your resources. Fix it.
 
-Your job is to analyze current market conditions and available opportunities.
-For now, report your analysis and any opportunities you see. Do NOT execute trades yet — just analyze and report.
+Available actions:
+- swap_eth_to_aleph: if ALEPH is low, swap ETH to get more compute time
+- compound_withdraw: if you need more idle USDC or ETH, withdraw from Compound first
+- Token swaps via wallet if needed
 
-Be concise. Think step by step.`;
+Fix the issues reported. Be efficient — do only what's needed.`;
+
+const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent on Base blockchain.
+You have excess capital to deploy.
+
+For now, your strategy is simple: supply idle USDC to Compound to earn yield.
+Use compound_supply with assetId "usdc" and the amount of idle USDC available (not the Compound amount — that's already deployed).
+
+Be concise. Execute the supply.`;
 
 interface AgentState {
   cycle: number;
@@ -36,111 +53,182 @@ interface AgentState {
   startedAt: Date;
 }
 
-async function publishPhase(
-  postType: "heartbeat" | "strategy",
-  model: string,
-  toolExecutions: ToolExecution[],
-  reasoning: string,
-): Promise<void> {
-  const txHashes = toolExecutions.map((t) => t.txHash).filter(Boolean) as string[];
+interface PhaseResult {
+  type: "inventory" | "survival" | "strategy";
+  model: string;
+  reasoning: string;
+  toolExecutions: ToolExecution[];
+}
 
-  await publishActivity(postType, {
-    model,
-    content: reasoning,
-    tools: toolExecutions.length > 0 ? toolExecutions : undefined,
-    txHashes: txHashes.length > 0 ? txHashes : undefined,
-  });
+interface TriggerInfo {
+  kind: "survival" | "strategy";
+  args: Record<string, string>;
 }
 
 export async function runCycle(
   state: AgentState,
   wallet: Awaited<ReturnType<typeof createAgentWallet>>,
   llmClient: ReturnType<typeof createLLMClient>,
-  tools: Tool[],
+  toolSets: {
+    inventory: Tool[];
+    survival: Tool[];
+    strategy: Tool[];
+  },
 ): Promise<AgentState> {
   console.log(`\n--- Cycle ${state.cycle + 1} ---`);
+  const cycleId = crypto.randomUUID();
 
   const balances = await getBalances(wallet);
   console.log(`[wallet] ${balances.address}`);
   console.log(`[wallet] ETH: ${balances.ethBalance} | USDC: ${balances.usdcBalance}`);
 
-  const heartbeatUserPrompt = `Cycle ${state.cycle + 1} | Uptime: ${Math.round((Date.now() - state.startedAt.getTime()) / 1000)}s
-Wallet: ${balances.address} (${balances.chainName})
-ETH: ${balances.ethBalance} | USDC: ${balances.usdcBalance}
-USDC safety margin: ${config.usdcSafetyMargin}
+  const phases: PhaseResult[] = [];
 
-Check your ALEPH compute balance and ensure survival. Then evaluate if strategy analysis is warranted.`;
-
-  // --- Phase 1: Heartbeat (cheap model — survival + strategy trigger) ---
-  console.log(`[heartbeat] Running with ${config.heartbeatModel}...`);
-  let reasoning = "";
-  let strategyTrigger: { availableUsdc: string } | null = null;
+  // --- Phase 1: Inventory ---
+  console.log(`[inventory] Running with ${config.heartbeatModel}...`);
+  let trigger: TriggerInfo | null = null;
 
   try {
+    const inventoryUserPrompt = `Cycle ${state.cycle + 1} | Wallet: ${balances.address} (${balances.chainName})
+ETH: ${balances.ethBalance} | USDC: ${balances.usdcBalance} | Safety margin: ${config.usdcSafetyMargin}
+
+Check health and capital. Decide: trigger_survival or trigger_strategy.`;
+
     const result = await runAgentLoop(
       llmClient,
       config.heartbeatModel,
-      HEARTBEAT_PROMPT,
-      heartbeatUserPrompt,
-      tools,
+      INVENTORY_PROMPT,
+      inventoryUserPrompt,
+      toolSets.inventory,
     );
-    reasoning = result.reasoning;
-    console.log(`[heartbeat] ${reasoning}`);
 
-    // Check if heartbeat triggered strategy
-    const triggerCall = result.toolExecutions.find((t) => t.name.endsWith("trigger_strategy"));
-    if (triggerCall?.args) {
-      strategyTrigger = {
-        availableUsdc: triggerCall.args.availableUsdc ?? "0",
-      };
-    }
-
-    await publishPhase("heartbeat", config.heartbeatModel, result.toolExecutions, reasoning);
-  } catch (err) {
-    reasoning = `Error: ${err instanceof Error ? err.message : String(err)}`;
-    console.error(`[heartbeat] ${reasoning}`);
-    await publishActivity("error", {
+    phases.push({
+      type: "inventory",
       model: config.heartbeatModel,
-      content: reasoning,
+      reasoning: result.reasoning,
+      toolExecutions: result.toolExecutions,
     });
+
+    console.log(`[inventory] ${result.reasoning}`);
+
+    // Detect which trigger was called
+    const survivalCall = result.toolExecutions.find((t) => t.name.endsWith("trigger_survival"));
+    const strategyCall = result.toolExecutions.find((t) => t.name.endsWith("trigger_strategy"));
+
+    if (survivalCall?.args) {
+      trigger = { kind: "survival", args: survivalCall.args };
+    } else if (strategyCall?.args) {
+      trigger = { kind: "strategy", args: strategyCall.args };
+    }
+  } catch (err) {
+    const errMsg = `Inventory error: ${err instanceof Error ? err.message : String(err)}`;
+    console.error(`[inventory] ${errMsg}`);
+    await publishActivity("error", {
+      summary: errMsg,
+      model: config.heartbeatModel,
+      cycleId,
+    });
+    return { ...state, cycle: state.cycle + 1, wallet: balances };
   }
 
-  // --- Phase 2: Strategy (smarter model — only if heartbeat triggered it) ---
-  if (strategyTrigger) {
-    console.log(`[strategy] Triggered — ${strategyTrigger.availableUsdc} USDC available`);
-    console.log(`[strategy] Running with ${config.strategyModel}...`);
+  // --- Phase 2: Survival or Strategy ---
+  if (trigger?.kind === "survival") {
+    console.log(`[survival] Triggered — reason: ${trigger.args.reason ?? "unknown"}`);
     try {
-      const strategyUserPrompt = `Available USDC for deployment: ${strategyTrigger.availableUsdc}
-Wallet: ${balances.address} (${balances.chainName})
-ETH: ${balances.ethBalance}
+      const userPrompt = `Issue: ${trigger.args.reason ?? "unknown"}
+Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Compound USDC: ${trigger.args.compoundUsdc ?? "?"} | ETH: ${trigger.args.ethBalance ?? "?"} | ALEPH hours: ${trigger.args.alephHoursLeft ?? "?"}
 
-Analyze current conditions and report opportunities.`;
+Fix the issue.`;
+
+      const result = await runAgentLoop(
+        llmClient,
+        config.heartbeatModel,
+        SURVIVAL_PROMPT,
+        userPrompt,
+        toolSets.survival,
+      );
+
+      phases.push({
+        type: "survival",
+        model: config.heartbeatModel,
+        reasoning: result.reasoning,
+        toolExecutions: result.toolExecutions,
+      });
+
+      console.log(`[survival] ${result.reasoning}`);
+    } catch (err) {
+      const errMsg = `Survival error: ${err instanceof Error ? err.message : String(err)}`;
+      console.error(`[survival] ${errMsg}`);
+      phases.push({
+        type: "survival",
+        model: config.heartbeatModel,
+        reasoning: errMsg,
+        toolExecutions: [],
+      });
+    }
+  } else if (trigger?.kind === "strategy") {
+    console.log(`[strategy] Triggered — excess: ${trigger.args.excessAmount ?? "0"} USDC`);
+    try {
+      const userPrompt = `Excess capital: ${trigger.args.excessAmount ?? "0"} USDC
+Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Already in Compound: ${trigger.args.compoundUsdc ?? "?"}
+
+Deploy idle USDC to Compound.`;
 
       const result = await runAgentLoop(
         llmClient,
         config.strategyModel,
         STRATEGY_PROMPT,
-        strategyUserPrompt,
-        tools,
+        userPrompt,
+        toolSets.strategy,
       );
+
+      phases.push({
+        type: "strategy",
+        model: config.strategyModel,
+        reasoning: result.reasoning,
+        toolExecutions: result.toolExecutions,
+      });
+
       console.log(`[strategy] ${result.reasoning}`);
-      await publishPhase("strategy", config.strategyModel, result.toolExecutions, result.reasoning);
     } catch (err) {
       const errMsg = `Strategy error: ${err instanceof Error ? err.message : String(err)}`;
       console.error(`[strategy] ${errMsg}`);
-      await publishActivity("error", {
+      phases.push({
+        type: "strategy",
         model: config.strategyModel,
-        content: errMsg,
+        reasoning: errMsg,
+        toolExecutions: [],
       });
     }
   } else {
-    console.log("[strategy] Not triggered by heartbeat");
+    console.log("[phase2] No trigger from inventory");
+  }
+
+  // --- Phase 3: Summarize + Publish ---
+  for (const phase of phases) {
+    const summary = await summarizePhase(
+      llmClient,
+      config.heartbeatModel,
+      phase.type,
+      phase.reasoning,
+      phase.toolExecutions,
+    );
+
+    const txHashes = phase.toolExecutions.map((t) => t.txHash).filter(Boolean) as string[];
+
+    await publishActivity(phase.type, {
+      summary,
+      model: phase.model,
+      cycleId,
+      tools: phase.toolExecutions.length > 0 ? phase.toolExecutions : undefined,
+      txHashes: txHashes.length > 0 ? txHashes : undefined,
+    });
   }
 
   return {
     cycle: state.cycle + 1,
     wallet: balances,
-    lastReasoning: reasoning,
+    lastReasoning: phases[phases.length - 1]?.reasoning ?? null,
     startedAt: state.startedAt,
   };
 }
@@ -153,31 +241,49 @@ export async function startAgent() {
   console.log(`USDC safety margin: ${config.usdcSafetyMargin}`);
   console.log(`Cycle interval: ${config.cycleIntervalMs}ms`);
 
-  // Init Aleph publisher
   initAlephPublisher(config.privateKey);
 
-  // Create wallet
   const wallet = await createAgentWallet(config.privateKey, config.chain, config.builderCode);
 
-  // Create AgentKit with wallet provider + action providers
-  const agentKit = await AgentKit.from({
+  // Per-phase tool sets
+  const inventoryKit = await AgentKit.from({
     walletProvider: wallet.provider,
     actionProviders: [
       walletActionProvider(),
       erc20ActionProvider(),
       alephActionProvider,
+      compoundActionProvider(),
       basileusTriggerProvider,
     ],
   });
 
-  // Convert AgentKit actions -> BlockRun tools
-  const actions = agentKit.getActions();
-  const tools = actionsToTools(actions);
-  console.log(
-    `[agentkit] ${actions.length} actions available: ${actions.map((a) => a.name).join(", ")}`,
-  );
+  const survivalKit = await AgentKit.from({
+    walletProvider: wallet.provider,
+    actionProviders: [
+      walletActionProvider(),
+      erc20ActionProvider(),
+      alephActionProvider,
+      compoundActionProvider(),
+    ],
+  });
 
-  // Create LLM client
+  const strategyKit = await AgentKit.from({
+    walletProvider: wallet.provider,
+    actionProviders: [
+      walletActionProvider(),
+      erc20ActionProvider(),
+      compoundActionProvider(),
+    ],
+  });
+
+  const toolSets = {
+    inventory: actionsToTools(inventoryKit.getActions()),
+    survival: actionsToTools(survivalKit.getActions()),
+    strategy: actionsToTools(strategyKit.getActions()),
+  };
+
+  console.log(`[agentkit] Inventory: ${toolSets.inventory.length} tools | Survival: ${toolSets.survival.length} tools | Strategy: ${toolSets.strategy.length} tools`);
+
   const llmClient = createLLMClient(config.privateKey);
 
   let state: AgentState = {
@@ -187,13 +293,11 @@ export async function startAgent() {
     startedAt: new Date(),
   };
 
-  // Run first cycle immediately
-  state = await runCycle(state, wallet, llmClient, tools);
+  state = await runCycle(state, wallet, llmClient, toolSets);
 
-  // Then run on interval
   setInterval(async () => {
     try {
-      state = await runCycle(state, wallet, llmClient, tools);
+      state = await runCycle(state, wallet, llmClient, toolSets);
     } catch (err) {
       console.error("[agent] Cycle failed:", err);
     }

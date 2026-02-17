@@ -10,7 +10,6 @@ const actionMap = new Map<string, Action["invoke"]>();
  * Also builds internal map for dispatching tool calls.
  */
 export function actionsToTools(actions: Action[]): Tool[] {
-  actionMap.clear();
   return actions.map((action) => {
     actionMap.set(action.name, action.invoke);
     return {
