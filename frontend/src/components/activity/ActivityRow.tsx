@@ -13,11 +13,17 @@ const typeConfig: Record<
   AgentActivity["type"],
   { label: string; colorClass: string; dotClass: string; bgClass: string }
 > = {
-  heartbeat: {
-    label: "Heartbeat",
-    colorClass: "text-green-500",
-    dotClass: "bg-green-500 shadow-[0_0_6px_#22c55e]",
-    bgClass: "bg-green-500/10",
+  inventory: {
+    label: "Inventory",
+    colorClass: "text-blue-500",
+    dotClass: "bg-blue-500 shadow-[0_0_6px_#3b82f6]",
+    bgClass: "bg-blue-500/10",
+  },
+  survival: {
+    label: "Survival",
+    colorClass: "text-orange-500",
+    dotClass: "bg-orange-500 shadow-[0_0_6px_#f97316]",
+    bgClass: "bg-orange-500/10",
   },
   strategy: {
     label: "Strategy",
@@ -136,7 +142,7 @@ export function ActivityRow({ activity, nested }: ActivityRowProps) {
             className={`text-sm leading-relaxed text-zinc-300 ${expanded ? "" : "line-clamp-1"}`}
             style={{ fontFamily: "var(--font-body)" }}
           >
-            {expanded ? activity.content : activity.content.slice(0, 120)}
+            {activity.summary}
           </p>
         </button>
 

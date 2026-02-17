@@ -7,11 +7,17 @@ const typeConfig: Record<
   AgentActivity["type"],
   { label: string; colorClass: string; dotClass: string; bgClass: string }
 > = {
-  heartbeat: {
-    label: "Heartbeat",
-    colorClass: "text-green-500",
-    dotClass: "bg-green-500 shadow-[0_0_6px_#22c55e]",
-    bgClass: "bg-green-500/10",
+  inventory: {
+    label: "Inventory",
+    colorClass: "text-blue-500",
+    dotClass: "bg-blue-500 shadow-[0_0_6px_#3b82f6]",
+    bgClass: "bg-blue-500/10",
+  },
+  survival: {
+    label: "Survival",
+    colorClass: "text-orange-500",
+    dotClass: "bg-orange-500 shadow-[0_0_6px_#f97316]",
+    bgClass: "bg-orange-500/10",
   },
   strategy: {
     label: "Strategy",
@@ -29,8 +35,8 @@ const typeConfig: Record<
 
 export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }) {
   const [expanded, setExpanded] = useState(false);
-  const first = activities[0];
-  const config = typeConfig[first.type];
+  const last = activities[activities.length - 1];
+  const config = typeConfig[last.type];
 
   return (
     <div className="border-b border-subtle">
@@ -52,13 +58,15 @@ export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }
           </span>
         </span>
 
-        {/* Count + chevron */}
         <div className="flex min-w-0 flex-1 items-center gap-2">
+          <p className="text-sm text-zinc-300 line-clamp-1 flex-1" style={{ fontFamily: "var(--font-body)" }}>
+            {last.summary}
+          </p>
           <span className="flex h-5 items-center rounded-md bg-neutral-800 px-1.5 text-[10px] font-medium text-zinc-400">
             {activities.length}
           </span>
           <svg
-            className={`h-3.5 w-3.5 text-zinc-500 transition-transform ${expanded ? "rotate-180" : ""}`}
+            className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform ${expanded ? "rotate-180" : ""}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -68,7 +76,7 @@ export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }
           </svg>
         </div>
 
-        <span className="shrink-0 text-xs text-zinc-500">{relativeTime(first.timestamp)}</span>
+        <span className="shrink-0 text-xs text-zinc-500">{relativeTime(last.timestamp)}</span>
       </button>
 
       {expanded && (

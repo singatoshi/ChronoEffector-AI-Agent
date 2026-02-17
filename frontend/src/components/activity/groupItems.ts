@@ -26,7 +26,7 @@ export function groupFeedItems(
     for (const act of activities) {
       merged.push({
         sort: new Date(act.timestamp).getTime(),
-        groupKey: `act-${act.type}`,
+        groupKey: `cycle-${act.cycleId}`,
         di: { kind: "activity", data: act },
       });
     }
