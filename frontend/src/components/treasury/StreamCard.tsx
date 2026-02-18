@@ -33,7 +33,7 @@ export function StreamCard({
 
   return (
     <Card
-      className="animate-card-reveal relative col-span-1 overflow-hidden border-neutral-800 bg-elevated py-6 lg:col-span-2"
+      className="animate-card-reveal relative col-span-1 overflow-hidden border-neutral-800 bg-elevated py-4"
       style={{ animationDelay: "0ms" }}
     >
       {/* Ambient amber glow at top */}
@@ -115,7 +115,7 @@ export function StreamCard({
 export function StreamCardSkeleton() {
   return (
     <Card
-      className="animate-card-reveal border-neutral-800 bg-elevated py-6 lg:col-span-2"
+      className="animate-card-reveal border-neutral-800 bg-elevated py-4"
       style={{ animationDelay: "0ms" }}
     >
       <div className="px-6">

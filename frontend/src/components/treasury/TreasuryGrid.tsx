@@ -1,5 +1,6 @@
 import { useAgentBalance } from "../../hooks/useAgentBalance";
 import { useSuperfluidStreams } from "../../hooks/useSuperfluid";
+import { AssetsCard } from "./AssetsCard";
 import { BalanceCard, BalanceCardSkeleton } from "./BalanceCard";
 import { StreamCard, StreamCardSkeleton } from "./StreamCard";
 
@@ -15,9 +16,11 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StreamCardSkeleton />
-        <BalanceCardSkeleton index={0} />
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
+          <StreamCardSkeleton />
+          <BalanceCardSkeleton index={0} />
+        </div>
         <BalanceCardSkeleton index={1} />
       </div>
     );
@@ -34,31 +37,29 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-      {/* Hero: StreamCard — spans 2 cols on lg */}
-      <StreamCard
-        address={address}
-        alephRaw={alephRaw}
-        flowRatePerSec={flowRatePerSec}
-        flowRatePerHour={flowRatePerHour}
-        hoursLeft={hoursLeft}
-      />
+    <div className="space-y-4">
+      {/* Row 1: ALEPH streaming + ETH */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_200px]">
+        <StreamCard
+          address={address}
+          alephRaw={alephRaw}
+          flowRatePerSec={flowRatePerSec}
+          flowRatePerHour={flowRatePerHour}
+          hoursLeft={hoursLeft}
+        />
+        <BalanceCard
+          label="ETH"
+          value={balances.data?.eth ?? "0"}
+          accentBorderClass="border-l-slate-400"
+          icon={<span className="text-slate-400">&#9670;</span>}
+          index={1}
+        />
+      </div>
 
-      {/* ETH balance */}
-      <BalanceCard
-        label="ETH"
-        value={balances.data?.eth ?? "0"}
-        accentBorderClass="border-l-indigo-400"
-        icon={<span className="text-indigo-400">&#9670;</span>}
-        index={1}
-      />
-
-      {/* USDC balance */}
-      <BalanceCard
-        label="USDC"
-        value={balances.data?.usdc ?? "0"}
-        accentBorderClass="border-l-emerald-500"
-        icon={<span className="text-emerald-500">&#9679;</span>}
+      {/* Row 2: Assets — full width */}
+      <AssetsCard
+        usdc={balances.data?.usdc ?? "0"}
+        compoundUsdc={balances.data?.compoundUsdc ?? "0"}
         index={2}
       />
     </div>

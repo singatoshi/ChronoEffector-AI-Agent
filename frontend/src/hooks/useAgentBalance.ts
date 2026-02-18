@@ -1,11 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatEther, formatUnits } from "viem";
 import { publicClient } from "../lib/viem";
-import { USDC, ALEPH, erc20BalanceAbi, USDC_DECIMALS, ALEPH_DECIMALS } from "../lib/contracts";
+import {
+  USDC,
+  ALEPH,
+  COMPOUND_COMET,
+  erc20BalanceAbi,
+  USDC_DECIMALS,
+  ALEPH_DECIMALS,
+} from "../lib/contracts";
 
 export interface AgentBalances {
   eth: string;
   usdc: string;
+  compoundUsdc: string;
   aleph: string;
   alephRaw: bigint;
 }
@@ -15,10 +23,16 @@ export function useAgentBalance(address: `0x${string}` | undefined) {
     queryKey: ["balance", address],
     queryFn: async (): Promise<AgentBalances> => {
       if (!address) throw new Error("No address");
-      const [ethBal, usdcBal, alephBal] = await Promise.all([
+      const [ethBal, usdcBal, compoundUsdcBal, alephBal] = await Promise.all([
         publicClient.getBalance({ address }),
         publicClient.readContract({
           address: USDC,
+          abi: erc20BalanceAbi,
+          functionName: "balanceOf",
+          args: [address],
+        }),
+        publicClient.readContract({
+          address: COMPOUND_COMET,
           abi: erc20BalanceAbi,
           functionName: "balanceOf",
           args: [address],
@@ -33,6 +47,7 @@ export function useAgentBalance(address: `0x${string}` | undefined) {
       return {
         eth: formatEther(ethBal),
         usdc: formatUnits(usdcBal, USDC_DECIMALS),
+        compoundUsdc: formatUnits(compoundUsdcBal, USDC_DECIMALS),
         aleph: formatUnits(alephBal, ALEPH_DECIMALS),
         alephRaw: alephBal,
       };
