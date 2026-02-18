@@ -57,7 +57,7 @@ export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }
               className="shrink-0 rounded bg-neutral-800 px-1.5 py-0.5 text-[10px] text-zinc-400"
               style={{ fontFamily: "var(--font-mono)" }}
             >
-              {totalTx} tx
+              {totalTx} tx{totalTx > 1 ? "s" : ""}
             </span>
           )}
           <span className="flex items-center gap-1">
