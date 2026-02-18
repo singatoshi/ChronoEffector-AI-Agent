@@ -1,10 +1,6 @@
 import { type Tool } from "@blockrun/llm";
-import {
-  AgentKit,
-  compoundActionProvider,
-  erc20ActionProvider,
-  walletActionProvider,
-} from "@coinbase/agentkit";
+import { AgentKit, erc20ActionProvider, walletActionProvider } from "@coinbase/agentkit";
+import { compoundFixedProvider } from "./actions/compound/index.js";
 import { alephActionProvider } from "./actions/aleph.js";
 import { basileusTriggerProvider } from "./actions/basileus.js";
 import { initAlephPublisher, publishActivity, type ToolExecution } from "./aleph-publisher.js";
@@ -244,7 +240,9 @@ export async function startAgent() {
   console.log(`Chain: ${config.chain.name}`);
   console.log(`Heartbeat model: ${config.heartbeatModel}`);
   console.log(`Strategy model: ${config.strategyModel}`);
-  console.log(`USDC survival threshold: ${config.usdcSurvivalThreshold} | idle target: ${config.usdcIdleTarget}`);
+  console.log(
+    `USDC survival threshold: ${config.usdcSurvivalThreshold} | idle target: ${config.usdcIdleTarget}`,
+  );
   console.log(`Cycle interval: ${config.cycleIntervalMs}ms`);
 
   initAlephPublisher(config.privateKey);
@@ -258,7 +256,7 @@ export async function startAgent() {
       walletActionProvider(),
       erc20ActionProvider(),
       alephActionProvider,
-      compoundActionProvider(),
+      compoundFixedProvider,
       basileusTriggerProvider,
     ],
   });
