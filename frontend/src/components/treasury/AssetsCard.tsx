@@ -1,5 +1,5 @@
 import { Card } from "@/components/ui/card";
-import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 
 interface AssetsCardProps {
   usdc: string;
@@ -70,8 +70,7 @@ export function AssetsCard({ usdc, compoundUsdc, index = 0 }: AssetsCardProps) {
         <div className="mt-3 flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-8">
           {/* Donut with total in center */}
           <div className="relative h-[110px] w-[110px] shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart width={110} height={110}>
                 <Pie
                   data={chartData}
                   dataKey="value"
@@ -88,7 +87,6 @@ export function AssetsCard({ usdc, compoundUsdc, index = 0 }: AssetsCardProps) {
                   ))}
                 </Pie>
               </PieChart>
-            </ResponsiveContainer>
             {/* Center total */}
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span
