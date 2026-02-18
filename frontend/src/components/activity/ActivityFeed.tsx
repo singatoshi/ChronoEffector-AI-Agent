@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle } from "lucide-react";
 import { useActivities } from "../../hooks/useActivities";
+import { useBlockscoutFreshness } from "../../hooks/useBlockscoutFreshness";
 import { useTokenTransfers } from "../../hooks/useTokenTransfers";
 import { useTransactions } from "../../hooks/useTransactions";
 import { ActivityGroupRow } from "./ActivityGroupRow";
@@ -83,6 +85,7 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
   const txQuery = useTransactions(address);
   const tokenQuery = useTokenTransfers(address);
   const actQuery = useActivities(address);
+  const freshness = useBlockscoutFreshness();
 
   const allTxs = useMemo(() => txQuery.data?.pages.flatMap((p) => p.items) ?? [], [txQuery.data]);
   const allTokenTransfers = useMemo(
@@ -128,6 +131,14 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
           <FiltersButton hideScams={hideScams} onHideScamsChange={setHideScams} />
         </div>
       </div>
+
+      {freshness.data?.stale && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-yellow-800/50 bg-yellow-950/30 px-3 py-2 text-xs text-yellow-400">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          Blockscout data looks delayed (last block {freshness.data.ageMinutes}min ago). Recent
+          transactions might not appear yet.
+        </div>
+      )}
 
       <div className="overflow-hidden rounded-xl border border-neutral-800 bg-surface">
         {nothingYet ? (
