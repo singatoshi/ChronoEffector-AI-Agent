@@ -9,6 +9,7 @@
     "build": "tsc",
     "generate-wallet": "tsx src/generate-wallet.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/"
   },
@@ -20,7 +21,10 @@
     "viem": "^2.45.3"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
     "prettier": "^3.8.1",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
