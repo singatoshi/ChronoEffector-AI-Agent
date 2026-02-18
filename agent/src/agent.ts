@@ -21,7 +21,7 @@ Your job this phase: CHECK HEALTH + CAPITAL INVENTORY.
 
 Then evaluate:
 - ALEPH healthy? (hours_left >= 24)
-- ETH sufficient for gas? (>= 0.0001 ETH)
+- ETH sufficient for gas? (>= ${config.ethMinBalance} ETH)
 - Idle USDC sufficient for inference? (>= ${config.usdcSurvivalThreshold} USDC, considering you can withdraw from Compound if needed)
 
 If UNHEALTHY (idle USDC + Compound USDC < ${config.usdcSurvivalThreshold}): call trigger_survival with what's wrong + all balances.
