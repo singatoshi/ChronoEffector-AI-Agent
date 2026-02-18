@@ -1,11 +1,30 @@
-import type { BlockscoutTx, BlockscoutTokenTransferItem } from "../../lib/blockscout";
+import type {
+  BlockscoutTx,
+  BlockscoutTokenTransferItem,
+  BlockscoutAddress,
+} from "../../lib/blockscout";
 import {
   SUPERFLUID_CFAV1_FORWARDER,
   L2_REGISTRAR,
   L2_REGISTRY,
   BLOCKRUN_X402,
+  COMPOUND_COMET,
 } from "../../lib/contracts";
 import { formatAmount, formatWeiValue } from "../../lib/format";
+import { USDC_DECIMALS } from "../../lib/contracts";
+
+/** Extract protocol name from Blockscout address metadata tags */
+function getProtocolTag(addr: BlockscoutAddress | null): string | null {
+  const tags = addr?.metadata?.tags;
+  if (!tags) return null;
+  const proto = tags.find((t) => t.tagType === "protocol");
+  return proto?.name ?? null;
+}
+
+/** Capitalise first letter of a method name */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 export type IconType =
   | { kind: "img"; src: string; alt: string }
@@ -51,6 +70,14 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   const isSuperfluid = toAddr === SUPERFLUID_CFAV1_FORWARDER.toLowerCase();
   const isRegistrar = toAddr === L2_REGISTRAR.toLowerCase();
   const isRegistry = toAddr === L2_REGISTRY.toLowerCase();
+  const isCompound = toAddr === COMPOUND_COMET.toLowerCase();
+
+  // For approve txs, check if spender is a known protocol
+  const spender =
+    tx.method === "approve"
+      ? tx.decoded_input?.parameters?.find((p) => p.name === "spender")?.value.toLowerCase()
+      : null;
+  const isApproveForCompound = spender === COMPOUND_COMET.toLowerCase();
 
   let label: string;
   if (isSuperfluid && tx.method === "createFlow") label = "Start ALEPH stream";
@@ -58,14 +85,39 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   else if (isSuperfluid && tx.method === "updateFlow") label = "Update ALEPH stream";
   else if (isRegistrar && tx.method === "register") label = "Register ENS name";
   else if (isRegistry && tx.method === "setContenthash") label = "Set ENS content hash";
-  else label = tx.method || "Transfer";
+  else if (isCompound) {
+    const compoundToken = tokenTransfer?.token.symbol || "USDC";
+    label = `${capitalize(tx.method || "interact")} ${compoundToken} (Compound)`;
+  } else if (isApproveForCompound) label = `Approve ${tx.to?.name || "USDC"} (Compound)`;
+  else {
+    // Fallback: use Blockscout protocol tag if available
+    const protocol = getProtocolTag(tx.to);
+    const method = tx.method || "Transfer";
+    label = protocol ? `${capitalize(method)} (${protocol})` : method;
+  }
 
-  const showCounterparty = !isSuperfluid && !isRegistrar && !isRegistry;
+  const hasCustomLabel =
+    isSuperfluid || isRegistrar || isRegistry || isCompound || isApproveForCompound;
+  const showCounterparty = !hasCustomLabel;
 
   let icon: IconType;
   if (isSuperfluid) icon = { kind: "img", src: "/icons/aleph.png", alt: "ALEPH" };
   else if (isRegistrar || isRegistry) icon = { kind: "img", src: "/icons/ens.jpg", alt: "ENS" };
+  else if (isCompound || isApproveForCompound)
+    icon = { kind: "img", src: "/icons/compound.png", alt: "Compound" };
   else icon = { kind: "direction", isSent };
+
+  // For Compound txs with no token transfers, extract amount from decoded_input
+  if ((isCompound || isApproveForCompound) && rawValue === 0 && tx.decoded_input?.parameters) {
+    const amountParam = tx.decoded_input.parameters.find(
+      (p) => p.name === "value" || p.name === "amount",
+    );
+    if (amountParam) {
+      rawValue = parseFloat(amountParam.value) / 10 ** USDC_DECIMALS;
+      valueDisplay = formatAmount(rawValue);
+      symbol = "USDC";
+    }
+  }
 
   const hideValue = valueDisplay === "0";
 
@@ -98,9 +150,18 @@ export function normalizeTokenTransfer(
   const rawValue = parseFloat(tt.total.value) / 10 ** decimals;
   const valueDisplay = formatAmount(rawValue);
 
-  const label = isBlockrun
-    ? "x402 AI inference"
-    : `${isSent ? "Send" : "Receive"} ${tt.token.symbol}`;
+  const isCompound = tt.to.hash.toLowerCase() === COMPOUND_COMET.toLowerCase();
+
+  let label: string;
+  if (isBlockrun) label = "x402 AI inference";
+  else if (isCompound) label = `${isSent ? "Supply" : "Withdraw"} ${tt.token.symbol} (Compound)`;
+  else {
+    const protocol = getProtocolTag(isSent ? tt.to : tt.from);
+    const direction = isSent ? "Send" : "Receive";
+    label = protocol
+      ? `${direction} ${tt.token.symbol} (${protocol})`
+      : `${direction} ${tt.token.symbol}`;
+  }
 
   let icon: IconType;
   if (isBlockrun) icon = { kind: "img", src: "/icons/blockrun.png", alt: "Blockrun" };

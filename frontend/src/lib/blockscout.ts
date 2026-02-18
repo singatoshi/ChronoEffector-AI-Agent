@@ -1,5 +1,33 @@
 const BASE_BLOCKSCOUT = "https://base.blockscout.com/api/v2";
 
+export interface BlockscoutAddressTag {
+  name: string;
+  slug: string;
+  tagType: string;
+  ordinal: number;
+  meta?: Record<string, string>;
+}
+
+export interface BlockscoutAddress {
+  hash: string;
+  is_contract: boolean;
+  name: string | null;
+  implementations?: { address_hash: string; name: string }[];
+  metadata?: { tags?: BlockscoutAddressTag[] } | null;
+}
+
+export interface BlockscoutDecodedParam {
+  name: string;
+  type: string;
+  value: string;
+}
+
+export interface BlockscoutDecodedInput {
+  method_call: string;
+  method_id: string;
+  parameters: BlockscoutDecodedParam[];
+}
+
 export interface BlockscoutTokenTransfer {
   token: { symbol: string; address: string; decimals: string };
   from: { hash: string };
@@ -11,11 +39,12 @@ export interface BlockscoutTx {
   hash: string;
   block_number: number;
   timestamp: string;
-  from: { hash: string; is_contract: boolean };
-  to: { hash: string; is_contract: boolean } | null;
+  from: BlockscoutAddress;
+  to: BlockscoutAddress | null;
   value: string;
   fee: { value: string };
   method: string | null;
+  decoded_input: BlockscoutDecodedInput | null;
   status: string;
   result: string;
   token_transfers: BlockscoutTokenTransfer[];
@@ -31,8 +60,8 @@ export interface BlockscoutTokenTransferItem {
   block_number: number;
   log_index: number;
   timestamp: string;
-  from: { hash: string; is_contract: boolean };
-  to: { hash: string; is_contract: boolean };
+  from: BlockscoutAddress;
+  to: BlockscoutAddress;
   method: string | null;
   token: {
     address_hash: string;
