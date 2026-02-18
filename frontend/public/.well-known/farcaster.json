@@ -12,7 +12,7 @@
     "splashImageUrl": "https://basileus-agent.eth.limo/splash.png",
     "splashBackgroundColor": "#0a0a0a",
     "subtitle": "Autonomous Agent Observatory",
-    "description": "Monitor autonomous on-chain agents. Treasury balances, Superfluid streams, and activity feeds.",
+    "description": "Monitor autonomous onchain agents. Treasury balances, Superfluid streams, and activity feeds.",
     "primaryCategory": "developer-tools",
     "tags": [
       "ai",
@@ -20,7 +20,7 @@
     ],
     "heroImageUrl": "https://basileus-agent.eth.limo/hero.png",
     "ogTitle": "Basileus",
-    "ogDescription": "Monitor and manage autonomous on-chain agents on Base.",
+    "ogDescription": "Monitor and manage autonomous onchain agents on Base.",
     "ogImageUrl": "https://basileus-agent.eth.limo/hero.png"
   }
 }
