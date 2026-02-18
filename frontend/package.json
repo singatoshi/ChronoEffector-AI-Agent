@@ -15,6 +15,7 @@
   "dependencies": {
     "@aleph-sdk/client": "^1.4.5",
     "@aleph-sdk/message": "^1.6.3",
+    "@farcaster/miniapp-sdk": "^0.2.3",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-router": "^1.159.6",
     "bip39": "^3.1.0",
