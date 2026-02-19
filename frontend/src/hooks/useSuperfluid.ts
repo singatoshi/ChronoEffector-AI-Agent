@@ -6,6 +6,7 @@ import { formatUnits } from "viem";
 export interface StreamInfo {
   totalFlowRatePerSec: bigint;
   flowRatePerHour: number;
+  totalAlephStreamed: number;
   streams: SuperfluidStream[];
 }
 
@@ -17,9 +18,21 @@ export function useSuperfluidStreams(address: `0x${string}` | undefined) {
       const streams = await getOutflows(address);
       const alephStreams = streams.filter((s) => s.token.symbol.toLowerCase().includes("aleph"));
       const totalFlowRate = alephStreams.reduce((sum, s) => sum + BigInt(s.currentFlowRate), 0n);
+
+      // Compute total ALEPH streamed across all streams
+      const nowSec = BigInt(Math.floor(Date.now() / 1000));
+      let totalStreamedWei = 0n;
+      for (const s of alephStreams) {
+        const streamed = BigInt(s.streamedUntilUpdatedAt);
+        const elapsed = nowSec - BigInt(s.updatedAtTimestamp);
+        const sinceUpdate = BigInt(s.currentFlowRate) * (elapsed > 0n ? elapsed : 0n);
+        totalStreamedWei += streamed + sinceUpdate;
+      }
+
       return {
         totalFlowRatePerSec: totalFlowRate,
         flowRatePerHour: parseFloat(formatUnits(totalFlowRate * 3600n, 18)),
+        totalAlephStreamed: parseFloat(formatUnits(totalStreamedWei, 18)),
         streams: alephStreams,
       };
     },

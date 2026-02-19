@@ -1,7 +1,9 @@
 import { useAgentBalance } from "../../hooks/useAgentBalance";
+import { useAgentPnl } from "../../hooks/useAgentPnl";
 import { useSuperfluidStreams } from "../../hooks/useSuperfluid";
 import { AssetsCard } from "./AssetsCard";
 import { BalanceCard, BalanceCardSkeleton } from "./BalanceCard";
+import { PnlCard, PnlCardSkeleton } from "./PnlCard";
 import { StreamCard, StreamCardSkeleton } from "./StreamCard";
 
 interface TreasuryGridProps {
@@ -11,17 +13,21 @@ interface TreasuryGridProps {
 export function TreasuryGrid({ address }: TreasuryGridProps) {
   const balances = useAgentBalance(address);
   const streams = useSuperfluidStreams(address);
+  const pnl = useAgentPnl(address);
 
   const isLoading = balances.isLoading || streams.isLoading;
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto]">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_200px]">
           <StreamCardSkeleton />
           <BalanceCardSkeleton index={0} />
         </div>
-        <BalanceCardSkeleton index={1} />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_200px]">
+          <BalanceCardSkeleton index={1} />
+          <PnlCardSkeleton index={2} />
+        </div>
       </div>
     );
   }
@@ -56,12 +62,15 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
         />
       </div>
 
-      {/* Row 2: Assets — full width */}
-      <AssetsCard
-        usdc={balances.data?.usdc ?? "0"}
-        compoundUsdc={balances.data?.compoundUsdc ?? "0"}
-        index={2}
-      />
+      {/* Row 2: Assets + PNL */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_200px]">
+        <AssetsCard
+          usdc={balances.data?.usdc ?? "0"}
+          compoundUsdc={balances.data?.compoundUsdc ?? "0"}
+          index={2}
+        />
+        {pnl.data ? <PnlCard data={pnl.data} index={3} /> : <PnlCardSkeleton index={3} />}
+      </div>
     </div>
   );
 }

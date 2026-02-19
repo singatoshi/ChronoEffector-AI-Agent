@@ -1,21 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { publicClient } from "../lib/viem";
-import { UNISWAP_ALEPH_POOL, uniswapV3PoolAbi } from "../lib/contracts";
 
 export function useAlephPrice() {
   return useQuery({
-    queryKey: ["alephPrice"],
+    queryKey: ["alephPriceUsd"],
     queryFn: async () => {
-      const slot0 = await publicClient.readContract({
-        address: UNISWAP_ALEPH_POOL,
-        abi: uniswapV3PoolAbi,
-        functionName: "slot0",
-      });
-      const sqrtPriceX96 = slot0[0];
-      const price = Number(sqrtPriceX96) / 2 ** 96;
-      const alephPerEth = price * price;
-      return { alephPerEth: Math.round(alephPerEth * 100) / 100 };
+      const res = await fetch(
+        "https://api.coingecko.com/api/v3/simple/price?ids=aleph&vs_currencies=usd",
+      );
+      const data = await res.json();
+      const usd: number = data.aleph?.usd ?? 0;
+      return { alephUsd: usd };
     },
     refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 }
