@@ -71,6 +71,13 @@ async function approveERC1155(
 /** Crypto market page UUID + daily filter — same as the Limitless UI crypto page */
 const CRYPTO_PAGE_ID = "5e76699e-8763-4c91-85de-3efeb064efec";
 
+/** Shares use 6 decimals (same as USDC) */
+const SHARES_DECIMALS = 6;
+function fmtShares(raw: number | string | undefined | null): number | null {
+  if (raw == null) return null;
+  return Number(raw) / 10 ** SHARES_DECIMALS;
+}
+
 /** Compute human-readable time remaining from ms timestamp */
 function timeRemaining(expirationTimestamp: number | undefined): string | null {
   if (!expirationTimestamp) return null;
@@ -133,8 +140,12 @@ export function createLimitlessActionProvider(
                 volume: m.volumeFormatted ?? m.volume,
                 yesPrice: m.prices?.[0] ?? null,
                 noPrice: m.prices?.[1] ?? null,
-                topBid: orderbook?.bids?.[0] ?? null,
-                topAsk: orderbook?.asks?.[0] ?? null,
+                topBid: orderbook?.bids?.[0]
+                  ? { price: orderbook.bids[0].price, size: fmtShares(orderbook.bids[0].size) }
+                  : null,
+                topAsk: orderbook?.asks?.[0]
+                  ? { price: orderbook.asks[0].price, size: fmtShares(orderbook.asks[0].size) }
+                  : null,
                 midpoint: orderbook?.adjustedMidpoint ?? null,
                 yesTokenId: m.tokens?.yes ?? null,
                 noTokenId: m.tokens?.no ?? null,
@@ -200,8 +211,8 @@ export function createLimitlessActionProvider(
               status: "order_created",
               orderId: response.order.id,
               side: args.side,
-              makerAmount: response.order.makerAmount,
-              takerAmount: response.order.takerAmount,
+              usdcSpent: fmtShares(response.order.makerAmount),
+              sharesReceived: fmtShares(response.order.takerAmount),
               matches: response.makerMatches?.length ?? 0,
               market: args.marketSlug,
             },
@@ -296,8 +307,8 @@ export function createLimitlessActionProvider(
               orderId: response.order.id,
               side: args.side,
               price: response.order.price,
-              makerAmount: response.order.makerAmount,
-              takerAmount: response.order.takerAmount,
+              shares: fmtShares(response.order.makerAmount),
+              usdcExpected: fmtShares(response.order.takerAmount),
               orderType: response.order.orderType,
               market: args.marketSlug,
             },
@@ -327,10 +338,10 @@ export function createLimitlessActionProvider(
             market: p.market.title,
             slug: p.market.slug,
             closed: p.market.closed,
-            yesBalance: p.tokensBalance.yes,
-            noBalance: p.tokensBalance.no,
-            yesUnrealizedPnl: p.positions.yes.unrealizedPnl,
-            noUnrealizedPnl: p.positions.no.unrealizedPnl,
+            yesShares: fmtShares(p.tokensBalance.yes),
+            noShares: fmtShares(p.tokensBalance.no),
+            yesUnrealizedPnl: fmtShares(p.positions.yes.unrealizedPnl),
+            noUnrealizedPnl: fmtShares(p.positions.no.unrealizedPnl),
             latestYesPrice: p.latestTrade?.latestYesPrice ?? null,
             latestNoPrice: p.latestTrade?.latestNoPrice ?? null,
           }));
@@ -340,8 +351,8 @@ export function createLimitlessActionProvider(
             slug: p.market.slug,
             closed: p.market.closed,
             side: p.outcomeIndex === 0 ? "YES" : "NO",
-            outcomeTokenAmount: p.outcomeTokenAmount,
-            unrealizedPnl: p.unrealizedPnl,
+            shares: fmtShares(p.outcomeTokenAmount),
+            unrealizedPnl: fmtShares(p.unrealizedPnl),
             avgPrice: p.averageFillPrice,
           }));
 
