@@ -1,9 +1,4 @@
-import {
-  HttpClient,
-  MarketFetcher,
-  OrderClient,
-  PortfolioFetcher,
-} from "@limitless-exchange/sdk";
+import { HttpClient, MarketFetcher, OrderClient, PortfolioFetcher } from "@limitless-exchange/sdk";
 import { ethers } from "ethers";
 
 export interface LimitlessClients {
@@ -14,10 +9,7 @@ export interface LimitlessClients {
   walletAddress: string;
 }
 
-export function createLimitlessClients(
-  apiKey: string,
-  privateKey: string,
-): LimitlessClients {
+export function createLimitlessClients(apiKey: string, privateKey: string): LimitlessClients {
   const httpClient = new HttpClient({ apiKey });
   const wallet = new ethers.Wallet(privateKey);
   const marketFetcher = new MarketFetcher(httpClient);

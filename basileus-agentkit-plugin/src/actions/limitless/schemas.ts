@@ -2,10 +2,7 @@ import { z } from "zod";
 
 export const GetDailyMarketsSchema = z
   .object({
-    category: z
-      .string()
-      .optional()
-      .describe("Optional category to filter markets by"),
+    category: z.string().optional().describe("Optional category to filter markets by"),
   })
   .describe("Fetch active prediction markets from Limitless Exchange");
 
@@ -31,11 +28,7 @@ export const PlaceLimitSellSchema = z
     marketSlug: z.string().describe("Market slug identifier"),
     side: z.enum(["YES", "NO"]).describe("Which outcome tokens to sell: YES or NO"),
     shares: z.number().positive().describe("Number of outcome shares to sell"),
-    price: z
-      .number()
-      .min(0.001)
-      .max(0.999)
-      .describe("Limit price per share (0.001-0.999)"),
+    price: z.number().min(0.001).max(0.999).describe("Limit price per share (0.001-0.999)"),
   })
   .describe("Place a GTC limit sell order for outcome tokens");
 

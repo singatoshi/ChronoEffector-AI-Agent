@@ -1,18 +1,14 @@
-import {
-  Side,
-  OrderType,
-  type MarketInterface,
-} from "@limitless-exchange/sdk";
 import { customActionProvider, EvmWalletProvider } from "@coinbase/agentkit";
-import { encodeFunctionData, erc20Abi, parseUnits } from "viem";
+import { OrderType, Side, type MarketInterface } from "@limitless-exchange/sdk";
+import { encodeFunctionData, erc20Abi } from "viem";
 import { createLimitlessClients, type LimitlessClients } from "./client.js";
-import { USDC_ADDRESS, CTF_ADDRESS, USDC_DECIMALS } from "./constants.js";
+import { CTF_ADDRESS, USDC_ADDRESS } from "./constants.js";
 import {
-  GetDailyMarketsSchema,
   BuyMarketOrderSchema,
   CheckOrderStatusSchema,
-  PlaceLimitSellSchema,
+  GetDailyMarketsSchema,
   GetPositionsSchema,
+  PlaceLimitSellSchema,
 } from "./schemas.js";
 
 /* ── ERC-1155 minimal ABI for setApprovalForAll ── */
@@ -89,10 +85,7 @@ function timeRemaining(expirationTimestamp: number | undefined): string | null {
 }
 
 /* ── Factory ── */
-export function createLimitlessActionProvider(
-  apiKey: string,
-  privateKey: string,
-) {
+export function createLimitlessActionProvider(apiKey: string, privateKey: string) {
   const clients: LimitlessClients = createLimitlessClients(apiKey, privateKey);
 
   return customActionProvider<EvmWalletProvider>([
@@ -102,10 +95,7 @@ export function createLimitlessActionProvider(
       description:
         "Fetch active daily crypto prediction markets (e.g. '$ETH above $X') from Limitless Exchange. Returns prices, orderbooks, time remaining, and token IDs for trading.",
       schema: GetDailyMarketsSchema,
-      invoke: async (
-        _walletProvider: EvmWalletProvider,
-        _args: { category?: string },
-      ) => {
+      invoke: async (_walletProvider: EvmWalletProvider, _args: { category?: string }) => {
         try {
           // Fetch daily crypto markets via the market-pages endpoint (same as UI)
           const resp = await clients.httpClient.get<{ data: MarketInterface[] }>(
@@ -115,9 +105,7 @@ export function createLimitlessActionProvider(
 
           const now = Date.now();
           const dailyCrypto = resp.data.filter(
-            (m: MarketInterface) =>
-              !m.expired &&
-              (m.expirationTimestamp ?? 0) > now,
+            (m: MarketInterface) => !m.expired && (m.expirationTimestamp ?? 0) > now,
           );
 
           const summaries = await Promise.all(
@@ -153,11 +141,7 @@ export function createLimitlessActionProvider(
             }),
           );
 
-          return JSON.stringify(
-            { count: summaries.length, markets: summaries },
-            null,
-            2,
-          );
+          return JSON.stringify({ count: summaries.length, markets: summaries }, null, 2);
         } catch (err) {
           return `Error fetching markets: ${err instanceof Error ? err.message : String(err)}`;
         }
@@ -185,17 +169,11 @@ export function createLimitlessActionProvider(
             return `Error: Market ${args.marketSlug} has no venue exchange address.`;
           }
 
-          const tokenId =
-            args.side === "YES" ? market.tokens.yes : market.tokens.no;
+          const tokenId = args.side === "YES" ? market.tokens.yes : market.tokens.no;
 
           // Approve USDC (max) to venue.exchange — covers fees
           const MAX_UINT256 = 2n ** 256n - 1n;
-          await approveERC20(
-            walletProvider,
-            USDC_ADDRESS,
-            market.venue.exchange,
-            MAX_UINT256,
-          );
+          await approveERC20(walletProvider, USDC_ADDRESS, market.venue.exchange, MAX_UINT256);
 
           // Place FOK buy order
           const response = await clients.orderClient.createOrder({
@@ -231,15 +209,11 @@ export function createLimitlessActionProvider(
       description:
         "Check the status of a previously placed order on Limitless Exchange by its order ID.",
       schema: CheckOrderStatusSchema,
-      invoke: async (
-        _walletProvider: EvmWalletProvider,
-        args: { orderId: string },
-      ) => {
+      invoke: async (_walletProvider: EvmWalletProvider, args: { orderId: string }) => {
         try {
-          const result = await clients.httpClient.post(
-            "/orders/status/batch",
-            { items: [{ orderId: args.orderId }] },
-          );
+          const result = await clients.httpClient.post("/orders/status/batch", {
+            items: [{ orderId: args.orderId }],
+          });
           return JSON.stringify(result, null, 2);
         } catch (err) {
           return `Error checking order status: ${err instanceof Error ? err.message : String(err)}`;
@@ -272,23 +246,14 @@ export function createLimitlessActionProvider(
             return `Error: Market ${args.marketSlug} has no venue exchange address.`;
           }
 
-          const tokenId =
-            args.side === "YES" ? market.tokens.yes : market.tokens.no;
+          const tokenId = args.side === "YES" ? market.tokens.yes : market.tokens.no;
 
           // Approve CTF (ERC-1155) to venue.exchange
-          await approveERC1155(
-            walletProvider,
-            CTF_ADDRESS,
-            market.venue.exchange,
-          );
+          await approveERC1155(walletProvider, CTF_ADDRESS, market.venue.exchange);
 
           // For NegRisk/grouped markets, also approve the adapter
           if (market.negRiskRequestId && market.venue.adapter) {
-            await approveERC1155(
-              walletProvider,
-              CTF_ADDRESS,
-              market.venue.adapter,
-            );
+            await approveERC1155(walletProvider, CTF_ADDRESS, market.venue.adapter);
           }
 
           // Place GTC sell order
@@ -327,10 +292,7 @@ export function createLimitlessActionProvider(
       description:
         "Get all your open positions on Limitless Exchange, including CLOB and AMM positions with P&L and token balances.",
       schema: GetPositionsSchema,
-      invoke: async (
-        _walletProvider: EvmWalletProvider,
-        _args: Record<string, never>,
-      ) => {
+      invoke: async (_walletProvider: EvmWalletProvider, _args: Record<string, never>) => {
         try {
           const positions = await clients.portfolioFetcher.getPositions();
 
