@@ -54,9 +54,12 @@ Your #1 priority is prediction market trading. You have a tool that scans Limitl
 
 STEP 1 (MANDATORY): Call your Limitless market scanning tool. Do NOT skip this step.
 STEP 2: Analyze the returned markets for mispricing opportunities. Report what you find.
-STEP 3: Only after scanning, handle Compound — supply idle USDC above ${config.usdcIdleTarget} if available. If a Limitless opportunity needs USDC, withdraw from Compound first.
+STEP 3: Only after scanning, if you have idle USDC above ${config.usdcIdleTarget}, supply the excess to Compound.
 
-Always keep ${config.usdcIdleTarget} USDC idle for inference payments.
+CAPITAL RULES:
+- Never deploy USDC below ${config.usdcSurvivalThreshold} idle (survival minimum).
+- If idle USDC > ${config.usdcIdleTarget}, supply the surplus (idle - ${config.usdcIdleTarget}) to Compound.
+- You may withdraw from Compound to fund a Limitless trade, but NOT to rebalance idle USDC — rebalancing is survival's job.
 Be concise.`;
 
 interface AgentState {
@@ -190,10 +193,9 @@ Fix the issue.`;
   } else if (trigger?.kind === "strategy") {
     console.log(`[strategy] Triggered — excess: ${trigger.args.excessAmount ?? "0"} USDC`);
     try {
-      const userPrompt = `Total excess capital: ${trigger.args.excessAmount ?? "0"} USDC (idle + compound - idle target)
-Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Already in Compound: ${trigger.args.compoundUsdc ?? "?"} | Idle target: ${config.usdcIdleTarget}
+      const userPrompt = `Idle USDC: ${trigger.args.idleUsdc ?? "?"} | Already in Compound: ${trigger.args.compoundUsdc ?? "?"} | Survival minimum: ${config.usdcSurvivalThreshold} | Idle target: ${config.usdcIdleTarget}
 
-Calculate availableToSupply = idle USDC - idle target. If <= 0, the excess is already deployed — do nothing. Otherwise supply that amount.`;
+Scan markets first, then supply any idle USDC above ${config.usdcIdleTarget} to Compound. Do not rebalance.`;
 
       const result = await runAgentLoop(
         llmClient,
@@ -314,13 +316,7 @@ export async function startAgent() {
   const survivalActions = pick(["swap_eth_to_aleph", "withdraw", "approve", "get_balance"]);
 
   // Strategy: Limitless markets + Compound yield
-  const strategyActions = pick([
-    "supply",
-    "withdraw",
-    "approve",
-    "get_balance",
-    "get_markets",
-  ]);
+  const strategyActions = pick(["supply", "withdraw", "approve", "get_balance", "get_markets"]);
 
   const { tools: inventoryTools, executeTool: execInventory } = actionsToTools(inventoryActions);
   const { tools: survivalTools, executeTool: execSurvival } = actionsToTools(survivalActions);
