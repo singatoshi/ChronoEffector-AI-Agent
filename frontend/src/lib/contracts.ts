@@ -7,6 +7,7 @@ export const UNISWAP_ALEPH_POOL = "0xe11C66b25F0e9a9eBEf1616B43424CC6E2168FC8" a
 export const SUPERFLUID_CFAV1_FORWARDER = "0xcfA132E353cB4E398080B9700609bb008eceB125" as const;
 export const BLOCKRUN_X402 = "0xe9030014F5DAe217d0A152f02A043567b16c1aBf" as const;
 export const COMPOUND_COMET = "0xb125E6687d4313864e53df431d5425969c15Eb2F" as const;
+export const LIMITLESS = "0x05c748e2f4dcde0ec9fa8ddc40de6b867f923fa5" as const;
 
 // Block where L2Registrar was deployed
 export const L2_REGISTRAR_DEPLOY_BLOCK = 42102582n;

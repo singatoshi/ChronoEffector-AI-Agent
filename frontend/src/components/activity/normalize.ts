@@ -9,6 +9,7 @@ import {
   L2_REGISTRY,
   BLOCKRUN_X402,
   COMPOUND_COMET,
+  LIMITLESS,
 } from "../../lib/contracts";
 import { formatAmount, formatWeiValue } from "../../lib/format";
 import { USDC_DECIMALS } from "../../lib/contracts";
@@ -72,6 +73,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   const isRegistrar = toAddr === L2_REGISTRAR.toLowerCase();
   const isRegistry = toAddr === L2_REGISTRY.toLowerCase();
   const isCompound = toAddr === COMPOUND_COMET.toLowerCase();
+  const isLimitless = toAddr === LIMITLESS.toLowerCase();
 
   // For approve txs, check if spender is a known protocol
   const spender =
@@ -79,6 +81,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
       ? tx.decoded_input?.parameters?.find((p) => p.name === "spender")?.value.toLowerCase()
       : null;
   const isApproveForCompound = spender === COMPOUND_COMET.toLowerCase();
+  const isApproveForLimitless = spender === LIMITLESS.toLowerCase();
 
   let label: string;
   if (isSuperfluid && tx.method === "createFlow") label = "Start ALEPH stream";
@@ -90,6 +93,8 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
     const compoundToken = tokenTransfer?.token.symbol || "USDC";
     label = `${capitalize(tx.method || "interact")} ${compoundToken} (Compound)`;
   } else if (isApproveForCompound) label = `Approve ${tx.to?.name || "USDC"} (Compound)`;
+  else if (isLimitless) label = `${isSent ? "Buy" : "Redeem"} shares (Limitless)`;
+  else if (isApproveForLimitless) label = `Approve USDC (Limitless)`;
   else {
     // Fallback: use Blockscout protocol tag if available
     const protocol = getProtocolTag(tx.to);
@@ -98,7 +103,13 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   }
 
   const hasCustomLabel =
-    isSuperfluid || isRegistrar || isRegistry || isCompound || isApproveForCompound;
+    isSuperfluid ||
+    isRegistrar ||
+    isRegistry ||
+    isCompound ||
+    isApproveForCompound ||
+    isLimitless ||
+    isApproveForLimitless;
   const showCounterparty = !hasCustomLabel;
 
   let icon: IconType;
@@ -106,10 +117,16 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   else if (isRegistrar || isRegistry) icon = { kind: "img", src: "/icons/ens.jpg", alt: "ENS" };
   else if (isCompound || isApproveForCompound)
     icon = { kind: "img", src: "/icons/compound.png", alt: "Compound" };
+  else if (isLimitless || isApproveForLimitless)
+    icon = { kind: "img", src: "/icons/limitless.png", alt: "Limitless" };
   else icon = { kind: "direction", isSent };
 
-  // For Compound txs with no token transfers, extract amount from decoded_input
-  if ((isCompound || isApproveForCompound) && rawValue === 0 && tx.decoded_input?.parameters) {
+  // For Compound/Limitless txs with no token transfers, extract amount from decoded_input
+  if (
+    (isCompound || isApproveForCompound || isLimitless || isApproveForLimitless) &&
+    rawValue === 0 &&
+    tx.decoded_input?.parameters
+  ) {
     const amountParam = tx.decoded_input.parameters.find(
       (p) => p.name === "value" || p.name === "amount",
     );
@@ -153,9 +170,13 @@ export function normalizeTokenTransfer(
   const valueDisplay = formatAmount(rawValue);
 
   const isCompound = tt.to.hash.toLowerCase() === COMPOUND_COMET.toLowerCase();
+  const isLimitlessTo = tt.to.hash.toLowerCase() === LIMITLESS.toLowerCase();
+  const isLimitlessFrom = tt.from.hash.toLowerCase() === LIMITLESS.toLowerCase();
+  const isLimitless = isLimitlessTo || isLimitlessFrom;
 
   let label: string;
   if (isBlockrun) label = "x402 AI inference";
+  else if (isLimitless) label = `${isLimitlessTo ? "Buy" : "Redeem"} shares (Limitless)`;
   else if (isCompound) label = `${isSent ? "Supply" : "Withdraw"} ${tt.token.symbol} (Compound)`;
   else {
     const protocol = getProtocolTag(isSent ? tt.to : tt.from);
@@ -167,6 +188,7 @@ export function normalizeTokenTransfer(
 
   let icon: IconType;
   if (isBlockrun) icon = { kind: "img", src: "/icons/blockrun.png", alt: "Blockrun" };
+  else if (isLimitless) icon = { kind: "img", src: "/icons/limitless.png", alt: "Limitless" };
   else icon = { kind: "direction", isSent };
 
   const isScam = tt.method?.toLowerCase() === "airdrop";
@@ -184,7 +206,7 @@ export function normalizeTokenTransfer(
     isInference: isBlockrun,
     isSent,
     counterparty,
-    showCounterparty: !isBlockrun,
+    showCounterparty: !isBlockrun && !isLimitless,
     explorerTxHash: tt.transaction_hash,
   };
 }
