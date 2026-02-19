@@ -227,7 +227,7 @@ export function createLimitlessActionProvider(
         try {
           const result = await clients.httpClient.post(
             "/orders/status/batch",
-            { orderIds: [args.orderId] },
+            { items: [{ orderId: args.orderId }] },
           );
           return JSON.stringify(result, null, 2);
         } catch (err) {
