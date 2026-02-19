@@ -21,9 +21,9 @@
     "viem": "^2.45.3"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
-    "@types/node": "^22.0.0",
     "eslint": "^9.0.0",
     "prettier": "^3.8.1",
     "tsx": "^4.19.0",
