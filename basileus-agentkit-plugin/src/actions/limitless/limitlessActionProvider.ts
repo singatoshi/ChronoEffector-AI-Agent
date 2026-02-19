@@ -177,20 +177,20 @@ export function createLimitlessActionProvider(
           const tokenId =
             args.side === "YES" ? market.tokens.yes : market.tokens.no;
 
-          // Approve USDC to venue.exchange
-          const usdcAmountAtomic = parseUnits(args.amountUsdc, USDC_DECIMALS);
+          // Approve USDC (max) to venue.exchange — covers fees
+          const MAX_UINT256 = 2n ** 256n - 1n;
           await approveERC20(
             walletProvider,
             USDC_ADDRESS,
             market.venue.exchange,
-            usdcAmountAtomic,
+            MAX_UINT256,
           );
 
           // Place FOK buy order
           const response = await clients.orderClient.createOrder({
             tokenId,
             side: Side.BUY,
-            makerAmount: Number(usdcAmountAtomic),
+            makerAmount: parseFloat(args.amountUsdc),
             orderType: OrderType.FOK,
             marketSlug: args.marketSlug,
           });
