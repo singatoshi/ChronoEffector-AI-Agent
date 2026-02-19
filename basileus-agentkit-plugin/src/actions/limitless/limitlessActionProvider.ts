@@ -110,10 +110,26 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
 
           const summaries = await Promise.all(
             dailyCrypto.map(async (m: MarketInterface) => {
-              let orderbook = null;
+              let buyYes: { price: number; availableShares: number } | null = null;
+              let buyNo: { price: number; availableShares: number } | null = null;
+
               try {
                 if (m.slug) {
-                  orderbook = await clients.marketFetcher.getOrderBook(m.slug);
+                  const ob = await clients.marketFetcher.getOrderBook(m.slug);
+                  // Asks = sell YES orders → taking them = buying YES
+                  if (ob.asks?.length) {
+                    buyYes = {
+                      price: ob.asks[0].price,
+                      availableShares: fmtShares(ob.asks[0].size)!,
+                    };
+                  }
+                  // Bids = buy YES orders → taking them = buying NO at 1-price
+                  if (ob.bids?.length) {
+                    buyNo = {
+                      price: +(1 - ob.bids[0].price).toFixed(4),
+                      availableShares: fmtShares(ob.bids[0].size)!,
+                    };
+                  }
                 }
               } catch {
                 /* orderbook may not exist */
@@ -122,21 +138,9 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
               return {
                 slug: m.slug,
                 title: m.title,
-                expirationDate: m.expirationDate,
-                expirationTimestamp: m.expirationTimestamp,
                 timeRemaining: timeRemaining(m.expirationTimestamp),
-                volume: m.volumeFormatted ?? m.volume,
-                yesPrice: m.prices?.[0] ?? null,
-                noPrice: m.prices?.[1] ?? null,
-                topBid: orderbook?.bids?.[0]
-                  ? { price: orderbook.bids[0].price, size: fmtShares(orderbook.bids[0].size) }
-                  : null,
-                topAsk: orderbook?.asks?.[0]
-                  ? { price: orderbook.asks[0].price, size: fmtShares(orderbook.asks[0].size) }
-                  : null,
-                midpoint: orderbook?.adjustedMidpoint ?? null,
-                yesTokenId: m.tokens?.yes ?? null,
-                noTokenId: m.tokens?.no ?? null,
+                buyYes,
+                buyNo,
               };
             }),
           );
