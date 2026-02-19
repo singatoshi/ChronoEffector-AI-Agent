@@ -1,5 +1,6 @@
 import { useAgentBalance } from "../../hooks/useAgentBalance";
 import { useAgentPnl } from "../../hooks/useAgentPnl";
+import { useLimitlessPositions } from "../../hooks/useLimitlessPositions";
 import { useSuperfluidStreams } from "../../hooks/useSuperfluid";
 import { AssetsCard } from "./AssetsCard";
 import { BalanceCard, BalanceCardSkeleton } from "./BalanceCard";
@@ -14,6 +15,7 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
   const balances = useAgentBalance(address);
   const streams = useSuperfluidStreams(address);
   const pnl = useAgentPnl(address);
+  const limitless = useLimitlessPositions(address);
 
   const isLoading = balances.isLoading || streams.isLoading;
 
@@ -67,6 +69,7 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
         <AssetsCard
           usdc={balances.data?.usdc ?? "0"}
           compoundUsdc={balances.data?.compoundUsdc ?? "0"}
+          limitless={limitless.data ?? 0}
           index={2}
         />
         {pnl.data ? <PnlCard data={pnl.data} index={3} /> : <PnlCardSkeleton index={3} />}

@@ -4,12 +4,14 @@ import { PieChart, Pie, Cell } from "recharts";
 interface AssetsCardProps {
   usdc: string;
   compoundUsdc: string;
+  limitless?: number;
   index?: number;
 }
 
 const PALETTE = {
   usdc: "#2775ca",
   compound: "#00d395",
+  limitless: "#a855f7",
   empty: "#27272a",
 };
 
@@ -26,14 +28,16 @@ function pct(value: number, total: number) {
   return `${Math.round(p)}%`;
 }
 
-export function AssetsCard({ usdc, compoundUsdc, index = 0 }: AssetsCardProps) {
+export function AssetsCard({ usdc, compoundUsdc, limitless = 0, index = 0 }: AssetsCardProps) {
   const usdcVal = parseFloat(usdc) || 0;
   const compoundVal = parseFloat(compoundUsdc) || 0;
-  const total = usdcVal + compoundVal;
+  const limitlessVal = limitless || 0;
+  const total = usdcVal + compoundVal + limitlessVal;
 
   const segments = [
     { name: "USDC", value: usdcVal, color: PALETTE.usdc },
     { name: "Compound USDC", value: compoundVal, color: PALETTE.compound },
+    { name: "Limitless", value: limitlessVal, color: PALETTE.limitless },
   ].filter((s) => s.value > 0);
 
   const isEmpty = segments.length === 0;
@@ -47,6 +51,13 @@ export function AssetsCard({ usdc, compoundUsdc, index = 0 }: AssetsCardProps) {
       value: compoundVal,
       color: PALETTE.compound,
       icon: "/icons/compound.png",
+    },
+    {
+      label: "Limitless",
+      sub: "Predictions",
+      value: limitlessVal,
+      color: PALETTE.limitless,
+      icon: "/icons/limitless.png",
     },
   ];
 
