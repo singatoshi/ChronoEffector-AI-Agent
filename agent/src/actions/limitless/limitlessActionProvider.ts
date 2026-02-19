@@ -1,6 +1,7 @@
 import { customActionProvider, EvmWalletProvider } from "@coinbase/agentkit";
 import { OrderType, Side, type MarketInterface } from "@limitless-exchange/sdk";
-import { encodeFunctionData, erc20Abi } from "viem";
+import { createPublicClient, encodeFunctionData, erc20Abi, http } from "viem";
+import { base } from "viem/chains";
 import { createLimitlessClients, type LimitlessClients } from "./client.js";
 import { CTF_ADDRESS, USDC_ADDRESS } from "./constants.js";
 import {
@@ -25,12 +26,24 @@ const erc1155SetApprovalAbi = [
   },
 ] as const;
 
+const publicClient = createPublicClient({ chain: base, transport: http() });
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function approveERC20(
   wallet: EvmWalletProvider,
   tokenAddress: string,
   spender: string,
   amount: bigint,
 ): Promise<void> {
+  const walletAddress = await wallet.getAddress();
+  const currentAllowance = (await publicClient.readContract({
+    address: tokenAddress as `0x${string}`,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [walletAddress as `0x${string}`, spender as `0x${string}`],
+  })) as bigint;
+  if (currentAllowance > 0n) return;
+
   const data = encodeFunctionData({
     abi: erc20Abi,
     functionName: "approve",
@@ -41,6 +54,8 @@ async function approveERC20(
     data,
   });
   await wallet.waitForTransactionReceipt(txHash);
+  // Wait for Limitless API's RPC to index the new approval
+  await sleep(2000);
 }
 
 async function approveERC1155(
