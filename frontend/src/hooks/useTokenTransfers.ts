@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { getTokenTransfers } from "../lib/blockscout";
+import { blockscoutNextPage, getTokenTransfers } from "../lib/blockscout";
 
 export function useTokenTransfers(address: string | undefined) {
   return useInfiniteQuery({
@@ -8,17 +8,10 @@ export function useTokenTransfers(address: string | undefined) {
       if (!address) throw new Error("No address");
       return getTokenTransfers(address, pageParam ?? undefined);
     },
-    getNextPageParam: (lastPage) => {
-      if (!lastPage.next_page_params) return undefined;
-      const params: Record<string, string> = {};
-      for (const [k, v] of Object.entries(lastPage.next_page_params)) {
-        params[k] = String(v);
-      }
-      return params;
-    },
+    getNextPageParam: blockscoutNextPage,
     initialPageParam: null as Record<string, string> | null,
     enabled: !!address,
-    staleTime: 30_000,
+    staleTime: 35_000,
     refetchInterval: 30_000,
   });
 }

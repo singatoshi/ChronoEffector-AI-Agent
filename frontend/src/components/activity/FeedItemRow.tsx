@@ -1,5 +1,6 @@
 import type { NormalizedTxItem } from "./normalize";
 import { relativeTime, truncateAddress } from "../../lib/format";
+import { ExternalLinkIcon } from "../ui/icons";
 
 function ItemIcon({ icon }: { icon: NormalizedTxItem["icon"] }) {
   if (icon.kind === "img") {
@@ -62,17 +63,7 @@ export function FeedItemRow({ item }: { item: NormalizedTxItem }) {
         className="shrink-0 text-zinc-600 transition-colors hover:text-zinc-400"
         title="View on Basescan"
       >
-        <svg
-          className="h-3.5 w-3.5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-          <polyline points="15 3 21 3 21 9" />
-          <line x1="10" y1="14" x2="21" y2="3" />
-        </svg>
+        <ExternalLinkIcon className="h-3.5 w-3.5" />
       </a>
     </div>
   );

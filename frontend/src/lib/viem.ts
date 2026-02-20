@@ -3,5 +3,5 @@ import { base } from "viem/chains";
 
 export const publicClient = createPublicClient({
   chain: base,
-  transport: http("https://base-mainnet.infura.io/v3/d669d5aa548840aaae9e704167ac5947"),
+  transport: http(import.meta.env.VITE_RPC_URL ?? "https://mainnet.base.org"),
 });

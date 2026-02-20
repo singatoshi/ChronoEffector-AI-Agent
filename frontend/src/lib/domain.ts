@@ -7,7 +7,7 @@ const HUB_DOMAINS = [
   "localhost",
 ];
 
-export function detectAgentLabel(): string | null {
+function _detectAgentLabel(): string | null {
   const hostname = window.location.hostname;
 
   // Dev mode or known hub domains
@@ -24,4 +24,11 @@ export function detectAgentLabel(): string | null {
   }
 
   return null;
+}
+
+/** Computed once at module load — hostname never changes at runtime */
+const _cachedLabel = _detectAgentLabel();
+
+export function detectAgentLabel(): string | null {
+  return _cachedLabel;
 }

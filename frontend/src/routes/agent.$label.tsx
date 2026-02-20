@@ -3,14 +3,12 @@ import { useAgents } from "../hooks/useAgents";
 import { TreasuryGrid } from "../components/treasury/TreasuryGrid";
 import { ActivityFeed } from "../components/activity/ActivityFeed";
 import { useState, useCallback } from "react";
+import { truncateAddress } from "../lib/format";
+import { ExternalLinkIcon } from "../components/ui/icons";
 
 export const Route = createFileRoute("/agent/$label")({
   component: AgentPage,
 });
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
 
 function CopyableAddress({ address }: { address: string }) {
   const [copied, setCopied] = useState(false);
@@ -106,17 +104,7 @@ function AgentPage() {
           className="inline-flex items-center gap-1 text-xs text-zinc-500 transition-colors hover:text-zinc-400"
         >
           Basescan
-          <svg
-            className="h-3 w-3"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-            <polyline points="15 3 21 3 21 9" />
-            <line x1="10" y1="14" x2="21" y2="3" />
-          </svg>
+          <ExternalLinkIcon className="h-3 w-3" />
         </a>
       </div>
 

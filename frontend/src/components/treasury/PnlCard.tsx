@@ -2,17 +2,11 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import type { PnlData } from "../../hooks/useAgentPnl";
+import { fmtUsd } from "../../lib/format";
 
 interface PnlCardProps {
   data: PnlData;
   index?: number;
-}
-
-function fmtUsd(n: number): string {
-  const abs = Math.abs(n);
-  if (abs === 0) return "$0.00";
-  if (abs < 0.01) return n < 0 ? "-< $0.01" : "< $0.01";
-  return `${n < 0 ? "-" : ""}$${abs.toFixed(2)}`;
 }
 
 function PnlBreakdown({ data, colorClass }: { data: PnlData; colorClass: string }) {

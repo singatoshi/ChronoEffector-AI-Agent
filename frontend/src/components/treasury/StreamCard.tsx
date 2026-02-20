@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { useLiveAlephBalance } from "../../hooks/useSuperfluid";
+import { ExternalLinkIcon } from "../ui/icons";
 
 interface StreamCardProps {
   address: `0x${string}`;
@@ -72,17 +73,7 @@ export function StreamCard({
             className="inline-flex items-center gap-1 text-[11px] text-zinc-600 transition-colors hover:text-zinc-400"
           >
             Superfluid
-            <svg
-              className="h-3 w-3"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
+            <ExternalLinkIcon className="h-3 w-3" />
           </a>
         </div>
 

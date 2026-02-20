@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { AgentActivity } from "../../hooks/useActivities";
 import { relativeTime } from "../../lib/format";
 import { ActivityRow } from "./ActivityRow";
+import { ChevronDownIcon } from "../ui/icons";
 
 const phaseDotClass: Record<string, string> = {
   inventory: "bg-blue-500",
@@ -69,15 +70,9 @@ export function ActivityGroupRow({ activities }: { activities: AgentActivity[] }
               />
             ))}
           </span>
-          <svg
+          <ChevronDownIcon
             className={`h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform ${expanded ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
+          />
         </div>
 
         <span className="shrink-0 text-xs text-zinc-500">{relativeTime(latest.timestamp)}</span>

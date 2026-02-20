@@ -1,11 +1,13 @@
+import { lazy, Suspense } from "react";
 import { useAgentBalance } from "../../hooks/useAgentBalance";
 import { useAgentPnl } from "../../hooks/useAgentPnl";
 import { useLimitlessPositions } from "../../hooks/useLimitlessPositions";
 import { useSuperfluidStreams } from "../../hooks/useSuperfluid";
-import { AssetsCard } from "./AssetsCard";
 import { BalanceCard, BalanceCardSkeleton } from "./BalanceCard";
 import { PnlCard, PnlCardSkeleton } from "./PnlCard";
 import { StreamCard, StreamCardSkeleton } from "./StreamCard";
+
+const AssetsCard = lazy(() => import("./AssetsCard").then((m) => ({ default: m.AssetsCard })));
 
 interface TreasuryGridProps {
   address: `0x${string}`;
@@ -73,12 +75,14 @@ export function TreasuryGrid({ address }: TreasuryGridProps) {
 
       {/* Row 2: Assets + PNL */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_200px]">
-        <AssetsCard
-          usdc={balances.data?.usdc ?? "0"}
-          compoundUsdc={balances.data?.compoundUsdc ?? "0"}
-          limitless={limitless.data ?? 0}
-          index={2}
-        />
+        <Suspense fallback={<BalanceCardSkeleton index={2} />}>
+          <AssetsCard
+            usdc={balances.data?.usdc ?? "0"}
+            compoundUsdc={balances.data?.compoundUsdc ?? "0"}
+            limitless={limitless.data ?? 0}
+            index={2}
+          />
+        </Suspense>
         {pnl.data ? <PnlCard data={pnl.data} index={3} /> : <PnlCardSkeleton index={3} />}
       </div>
     </div>

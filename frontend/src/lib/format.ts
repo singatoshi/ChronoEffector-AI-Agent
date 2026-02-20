@@ -26,3 +26,10 @@ export function formatAmount(val: number): string {
 export function formatWeiValue(wei: string): string {
   return formatAmount(parseFloat(wei) / 1e18);
 }
+
+export function fmtUsd(n: number): string {
+  const abs = Math.abs(n);
+  if (abs === 0) return "$0.00";
+  if (abs < 0.01) return n < 0 ? "-< $0.01" : "< $0.01";
+  return `${n < 0 ? "-" : ""}$${abs.toFixed(2)}`;
+}

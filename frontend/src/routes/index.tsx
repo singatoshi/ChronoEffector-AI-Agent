@@ -4,6 +4,7 @@ import { useAgents, type Agent } from "../hooks/useAgents";
 import { useAgentStatus, type AgentStatus } from "../hooks/useAgentStatus";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { truncateAddress } from "../lib/format";
 
 export const Route = createFileRoute("/")({
   beforeLoad: ({ location }) => {
@@ -39,10 +40,6 @@ const STATUS_CONFIG: Record<AgentStatus, { label: string; colorClass: string; do
       dotClass: "bg-red-500 shadow-[0_0_6px_#ef4444]",
     },
   };
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-}
 
 function formatHoursLeft(h: number): string {
   if (!isFinite(h)) return "Inactive";

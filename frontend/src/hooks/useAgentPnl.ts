@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTokenTransfers } from "../lib/blockscout";
 import { BLOCKRUN_X402, USDC } from "../lib/contracts";
@@ -82,29 +83,26 @@ export function useAgentPnl(
 
   const isLoading = transfers.isLoading || streams.isLoading || alephPrice.isLoading;
 
-  if (isLoading || !transfers.data || !streams.data || !alephPrice.data) {
-    return { data: undefined, isLoading };
-  }
+  const data = useMemo(() => {
+    if (!transfers.data || !streams.data || !alephPrice.data) return undefined;
 
-  const inferenceCostUsd = transfers.data.inferenceCost;
-  const totalAlephStreamed = streams.data.totalAlephStreamed;
-  const alephUsd = alephPrice.data.alephUsd;
-  const computingCostUsd = totalAlephStreamed * alephUsd;
+    const inferenceCostUsd = transfers.data.inferenceCost;
+    const totalAlephStreamed = streams.data.totalAlephStreamed;
+    const alephUsd = alephPrice.data.alephUsd;
+    const computingCostUsd = totalAlephStreamed * alephUsd;
 
-  const baseAssetsUsd = transfers.data.initialDeposit;
+    const baseAssetsUsd = transfers.data.initialDeposit;
 
-  // Current portfolio value
-  const currentAssetsUsd =
-    (opts.usdcBalance ?? 0) +
-    (opts.compoundUsdcBalance ?? 0) +
-    (opts.limitlessValue ?? 0) +
-    (opts.alephBalance ?? 0) * alephUsd;
+    const currentAssetsUsd =
+      (opts.usdcBalance ?? 0) +
+      (opts.compoundUsdcBalance ?? 0) +
+      (opts.limitlessValue ?? 0) +
+      (opts.alephBalance ?? 0) * alephUsd;
 
-  const assetPnl = currentAssetsUsd - baseAssetsUsd;
-  const pnl = assetPnl - inferenceCostUsd - computingCostUsd;
+    const assetPnl = currentAssetsUsd - baseAssetsUsd;
+    const pnl = assetPnl - inferenceCostUsd - computingCostUsd;
 
-  return {
-    data: {
+    return {
       inferenceCostUsd,
       computingCostUsd,
       totalAlephStreamed,
@@ -113,7 +111,16 @@ export function useAgentPnl(
       currentAssetsUsd,
       assetPnl,
       pnl,
-    },
-    isLoading: false,
-  };
+    };
+  }, [
+    transfers.data,
+    streams.data,
+    alephPrice.data,
+    opts.usdcBalance,
+    opts.compoundUsdcBalance,
+    opts.limitlessValue,
+    opts.alephBalance,
+  ]);
+
+  return { data, isLoading };
 }

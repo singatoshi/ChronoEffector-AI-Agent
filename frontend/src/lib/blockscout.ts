@@ -79,6 +79,16 @@ export interface BlockscoutTokenTransferResponse {
   next_page_params: Record<string, unknown> | null;
 }
 
+/** Shared next-page-param extractor for Blockscout paginated responses */
+export function blockscoutNextPage(lastPage: { next_page_params: Record<string, unknown> | null }) {
+  if (!lastPage.next_page_params) return undefined;
+  const params: Record<string, string> = {};
+  for (const [k, v] of Object.entries(lastPage.next_page_params)) {
+    params[k] = String(v);
+  }
+  return params;
+}
+
 export async function getTransactions(
   address: string,
   params?: Record<string, string>,

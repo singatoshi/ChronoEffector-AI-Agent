@@ -163,7 +163,23 @@ export function ActivityFeed({ address }: ActivityFeedProps) {
       )}
 
       <div className="overflow-hidden rounded-xl border border-neutral-800 bg-surface">
-        {nothingYet ? (
+        {txQuery.isError && tokenQuery.isError && actQuery.isError ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center text-sm text-red-400">
+            <AlertCircle className="h-4 w-4" />
+            Failed to load activity
+            <button
+              type="button"
+              onClick={() => {
+                txQuery.refetch();
+                tokenQuery.refetch();
+                actQuery.refetch();
+              }}
+              className="text-xs text-zinc-400 transition-colors hover:text-zinc-50"
+            >
+              Retry
+            </button>
+          </div>
+        ) : nothingYet ? (
           <div>
             {Array.from({ length: 5 }).map((_, i) => (
               <TransactionRowSkeleton key={i} />

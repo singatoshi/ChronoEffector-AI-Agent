@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { PieChart, Pie, Cell } from "recharts";
+import { fmtUsd } from "../../lib/format";
 
 interface AssetsCardProps {
   usdc: string;
@@ -14,12 +15,6 @@ const PALETTE = {
   limitless: "#a855f7",
   empty: "#27272a",
 };
-
-function fmt(n: number) {
-  if (n === 0) return "$0.00";
-  if (n < 0.01) return "< $0.01";
-  return `$${n.toFixed(2)}`;
-}
 
 function pct(value: number, total: number) {
   if (total === 0) return "0%";
@@ -117,7 +112,7 @@ export function AssetsCard({ usdc, compoundUsdc, limitless = 0, index = 0 }: Ass
                   className="text-base font-medium text-zinc-50"
                   style={{ fontFamily: "var(--font-mono)" }}
                 >
-                  {fmt(total)}
+                  {fmtUsd(total)}
                 </span>
               </div>
             </div>
@@ -152,7 +147,7 @@ export function AssetsCard({ usdc, compoundUsdc, limitless = 0, index = 0 }: Ass
                         className="text-sm font-medium text-zinc-50 tabular-nums"
                         style={{ fontFamily: "var(--font-mono)" }}
                       >
-                        {fmt(item.value)}
+                        {fmtUsd(item.value)}
                       </span>
                     </div>
                     <div className="mt-1.5 h-1 w-full rounded-full bg-neutral-800/60">
