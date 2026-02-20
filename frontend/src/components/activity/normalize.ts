@@ -10,6 +10,8 @@ import {
   BLOCKRUN_X402,
   COMPOUND_COMET,
   LIMITLESS,
+  CONDITIONAL_TOKENS,
+  LIMITLESS_BATCH,
 } from "../../lib/contracts";
 import { formatAmount, formatWeiValue } from "../../lib/format";
 import { USDC_DECIMALS } from "../../lib/contracts";
@@ -74,6 +76,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   const isRegistry = toAddr === L2_REGISTRY.toLowerCase();
   const isCompound = toAddr === COMPOUND_COMET.toLowerCase();
   const isLimitless = toAddr === LIMITLESS.toLowerCase();
+  const isConditionalTokens = toAddr === CONDITIONAL_TOKENS.toLowerCase();
 
   // For approve txs, check if spender is a known protocol
   const spender =
@@ -93,7 +96,8 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
     const compoundToken = tokenTransfer?.token.symbol || "USDC";
     label = `${capitalize(tx.method || "interact")} ${compoundToken} (Compound)`;
   } else if (isApproveForCompound) label = `Approve ${tx.to?.name || "USDC"} (Compound)`;
-  else if (isLimitless) label = `${isSent ? "Buy" : "Redeem"} shares (Limitless)`;
+  else if (isLimitless) label = `${isSent ? "Buy" : "Refund"} shares (Limitless)`;
+  else if (isConditionalTokens) label = "Redeem shares (Limitless)";
   else if (isApproveForLimitless) label = `Approve USDC (Limitless)`;
   else {
     // Fallback: use Blockscout protocol tag if available
@@ -109,6 +113,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
     isCompound ||
     isApproveForCompound ||
     isLimitless ||
+    isConditionalTokens ||
     isApproveForLimitless;
   const showCounterparty = !hasCustomLabel;
 
@@ -117,13 +122,17 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   else if (isRegistrar || isRegistry) icon = { kind: "img", src: "/icons/ens.jpg", alt: "ENS" };
   else if (isCompound || isApproveForCompound)
     icon = { kind: "img", src: "/icons/compound.png", alt: "Compound" };
-  else if (isLimitless || isApproveForLimitless)
+  else if (isLimitless || isConditionalTokens || isApproveForLimitless)
     icon = { kind: "img", src: "/icons/limitless.png", alt: "Limitless" };
   else icon = { kind: "direction", isSent };
 
   // For Compound/Limitless txs with no token transfers, extract amount from decoded_input
   if (
-    (isCompound || isApproveForCompound || isLimitless || isApproveForLimitless) &&
+    (isCompound ||
+      isApproveForCompound ||
+      isLimitless ||
+      isConditionalTokens ||
+      isApproveForLimitless) &&
     rawValue === 0 &&
     tx.decoded_input?.parameters
   ) {
@@ -177,11 +186,15 @@ export function normalizeTokenTransfer(
   const isCompound = tt.to.hash.toLowerCase() === COMPOUND_COMET.toLowerCase();
   const isLimitlessTo = tt.to.hash.toLowerCase() === LIMITLESS.toLowerCase();
   const isLimitlessFrom = tt.from.hash.toLowerCase() === LIMITLESS.toLowerCase();
-  const isLimitless = isLimitlessTo || isLimitlessFrom;
+  const isCTFFrom = tt.from.hash.toLowerCase() === CONDITIONAL_TOKENS.toLowerCase();
+  const isBatchFrom = tt.from.hash.toLowerCase() === LIMITLESS_BATCH.toLowerCase();
+  const isLimitless = isLimitlessTo || isLimitlessFrom || isCTFFrom || isBatchFrom;
 
   let label: string;
   if (isBlockrun) label = "x402 AI inference";
-  else if (isLimitless) label = `${isLimitlessTo ? "Buy" : "Redeem"} shares (Limitless)`;
+  else if (isBatchFrom) label = "Bet winnings (Limitless)";
+  else if (isLimitless)
+    label = `${isLimitlessTo ? "Buy" : isCTFFrom ? "Redeem" : "Refund"} shares (Limitless)`;
   else if (isCompound) label = `${isSent ? "Supply" : "Withdraw"} ${tt.token.symbol} (Compound)`;
   else {
     const protocol = getProtocolTag(isSent ? tt.to : tt.from);
