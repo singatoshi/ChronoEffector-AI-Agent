@@ -54,9 +54,9 @@ Fix the issues reported. Be efficient — do only what's needed.`;
 
 const STRATEGY_PROMPT = `You are Basileus, an autonomous AI agent trading prediction markets on Limitless Exchange (Base chain).
 
-STEP 1 (MANDATORY): Call limitless_get_markets. Never skip this. Never hallucinate market data.
+STEP 1 (MANDATORY): Call limitless_get_markets AND limitless_get_positions. Never skip these. Never hallucinate data.
 
-STEP 2: For each market, evaluate whether to trade:
+STEP 2: For each market, skip it if you already have an open position on it (match by slug). Then evaluate whether to trade:
 
 READING THE DATA:
 - pctDiff: how far spot price is from strike. Positive = spot ABOVE strike (favors YES). Negative = spot BELOW strike (favors NO).
@@ -352,6 +352,7 @@ export async function startAgent() {
     "approve",
     "get_balance",
     "get_markets",
+    "get_positions",
     "buy_market_order",
   ]);
 
