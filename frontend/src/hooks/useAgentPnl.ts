@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getTokenTransfers } from "../lib/blockscout";
-import { BLOCKRUN_X402 } from "../lib/contracts";
+import { BLOCKRUN_X402, USDC } from "../lib/contracts";
 import { useSuperfluidStreams } from "./useSuperfluid";
 import { useAlephPrice } from "./useAlephPrice";
 
@@ -9,23 +9,43 @@ export interface PnlData {
   computingCostUsd: number;
   totalAlephStreamed: number;
   alephUsd: number;
+  baseAssetsUsd: number;
+  currentAssetsUsd: number;
+  assetPnl: number;
   pnl: number;
 }
 
-function useInferenceCosts(address: `0x${string}` | undefined) {
+interface TransferAnalysis {
+  inferenceCost: number;
+  initialDeposit: number;
+}
+
+function useTransferAnalysis(address: `0x${string}` | undefined) {
   return useQuery({
-    queryKey: ["inferenceCosts", address],
-    queryFn: async () => {
+    queryKey: ["transferAnalysis", address],
+    queryFn: async (): Promise<TransferAnalysis> => {
       if (!address) throw new Error("No address");
-      let total = 0;
+      let inferenceCost = 0;
+      let firstUsdcDeposit = 0;
       let params: Record<string, string> | undefined;
-      // Paginate through all token transfers
+
+      // Paginate through all transfers (newest → oldest)
+      // Keep overwriting firstUsdcDeposit so it ends up with the oldest value
       for (;;) {
         const page = await getTokenTransfers(address, params);
         for (const item of page.items) {
+          const decimals = parseInt(item.total.decimals, 10);
+          const value = parseFloat(item.total.value) / 10 ** decimals;
+
           if (item.to.hash.toLowerCase() === BLOCKRUN_X402.toLowerCase()) {
-            const decimals = parseInt(item.total.decimals, 10);
-            total += parseFloat(item.total.value) / 10 ** decimals;
+            inferenceCost += value;
+          }
+
+          if (
+            item.to.hash.toLowerCase() === address.toLowerCase() &&
+            item.token.address_hash.toLowerCase() === USDC.toLowerCase()
+          ) {
+            firstUsdcDeposit = value;
           }
         }
         if (!page.next_page_params) break;
@@ -34,7 +54,8 @@ function useInferenceCosts(address: `0x${string}` | undefined) {
           params[k] = String(v);
         }
       }
-      return total;
+      console.log("[PNL] initialDeposit:", firstUsdcDeposit, "inferenceCost:", inferenceCost);
+      return { inferenceCost, initialDeposit: firstUsdcDeposit };
     },
     enabled: !!address,
     staleTime: 60_000,
@@ -42,28 +63,58 @@ function useInferenceCosts(address: `0x${string}` | undefined) {
   });
 }
 
-export function useAgentPnl(address: `0x${string}` | undefined): {
+export interface UseAgentPnlOpts {
+  usdcBalance?: number;
+  compoundUsdcBalance?: number;
+  alephBalance?: number;
+  limitlessValue?: number;
+}
+
+export function useAgentPnl(
+  address: `0x${string}` | undefined,
+  opts: UseAgentPnlOpts = {},
+): {
   data: PnlData | undefined;
   isLoading: boolean;
 } {
-  const inference = useInferenceCosts(address);
+  const transfers = useTransferAnalysis(address);
   const streams = useSuperfluidStreams(address);
   const alephPrice = useAlephPrice();
 
-  const isLoading = inference.isLoading || streams.isLoading || alephPrice.isLoading;
+  const isLoading = transfers.isLoading || streams.isLoading || alephPrice.isLoading;
 
-  if (isLoading || inference.data === undefined || !streams.data || !alephPrice.data) {
+  if (isLoading || !transfers.data || !streams.data || !alephPrice.data) {
     return { data: undefined, isLoading };
   }
 
-  const inferenceCostUsd = inference.data ?? 0;
+  const inferenceCostUsd = transfers.data.inferenceCost;
   const totalAlephStreamed = streams.data.totalAlephStreamed;
   const alephUsd = alephPrice.data.alephUsd;
   const computingCostUsd = totalAlephStreamed * alephUsd;
-  const pnl = -(inferenceCostUsd + computingCostUsd);
+
+  const baseAssetsUsd = transfers.data.initialDeposit;
+
+  // Current portfolio value
+  const currentAssetsUsd =
+    (opts.usdcBalance ?? 0) +
+    (opts.compoundUsdcBalance ?? 0) +
+    (opts.limitlessValue ?? 0) +
+    (opts.alephBalance ?? 0) * alephUsd;
+
+  const assetPnl = currentAssetsUsd - baseAssetsUsd;
+  const pnl = assetPnl - inferenceCostUsd - computingCostUsd;
 
   return {
-    data: { inferenceCostUsd, computingCostUsd, totalAlephStreamed, alephUsd, pnl },
+    data: {
+      inferenceCostUsd,
+      computingCostUsd,
+      totalAlephStreamed,
+      alephUsd,
+      baseAssetsUsd,
+      currentAssetsUsd,
+      assetPnl,
+      pnl,
+    },
     isLoading: false,
   };
 }

@@ -48,6 +48,21 @@ export function PnlCard({ data, index = 0 }: PnlCardProps) {
             <div className="invisible absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 rounded-lg border border-neutral-700 bg-neutral-900 p-3 opacity-0 shadow-xl transition-all group-hover:visible group-hover:opacity-100">
               <div className="space-y-1.5 text-[11px]" style={{ fontFamily: "var(--font-mono)" }}>
                 <div className="flex justify-between text-zinc-400">
+                  <span>Assets base</span>
+                  <span>{fmtUsd(data.baseAssetsUsd)}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Assets now</span>
+                  <span>{fmtUsd(data.currentAssetsUsd)}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Asset P&L</span>
+                  <span className={data.assetPnl >= 0 ? "text-emerald-400" : "text-red-400"}>
+                    {data.assetPnl >= 0 ? "+" : ""}
+                    {fmtUsd(data.assetPnl)}
+                  </span>
+                </div>
+                <div className="border-t border-neutral-700 pt-1.5 flex justify-between text-zinc-400">
                   <span>Inference</span>
                   <span className="text-red-400">-${data.inferenceCostUsd.toFixed(2)}</span>
                 </div>

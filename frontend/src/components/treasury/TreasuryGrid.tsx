@@ -14,8 +14,14 @@ interface TreasuryGridProps {
 export function TreasuryGrid({ address }: TreasuryGridProps) {
   const balances = useAgentBalance(address);
   const streams = useSuperfluidStreams(address);
-  const pnl = useAgentPnl(address);
   const limitless = useLimitlessPositions(address);
+
+  const pnl = useAgentPnl(address, {
+    usdcBalance: balances.data ? parseFloat(balances.data.usdc) : undefined,
+    compoundUsdcBalance: balances.data ? parseFloat(balances.data.compoundUsdc) : undefined,
+    alephBalance: balances.data ? parseFloat(balances.data.aleph) : undefined,
+    limitlessValue: limitless.data ?? undefined,
+  });
 
   const isLoading = balances.isLoading || streams.isLoading;
 
