@@ -210,8 +210,14 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
           ];
           const spotPrices = await fetchSpotPrices(tickers);
 
+          const MAX_MINUTES = 15 * 60; // 15 hours
+          const nearExpiry = active.filter(
+            (m: MarketInterface) =>
+              (minutesRemaining(m.expirationTimestamp) ?? Infinity) <= MAX_MINUTES,
+          );
+
           const markets = await Promise.all(
-            active.map(async (m: MarketInterface) => {
+            nearExpiry.map(async (m: MarketInterface) => {
               const ticker: string | null =
                 (m as MarketWithOracle).priceOracleMetadata?.ticker ?? null;
 
@@ -244,7 +250,6 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
 
               return {
                 slug: m.slug,
-                title: m.title,
                 ticker,
                 pctDiff,
                 minutesRemaining: minutesRemaining(m.expirationTimestamp),
