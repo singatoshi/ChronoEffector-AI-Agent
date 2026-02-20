@@ -58,9 +58,8 @@ async def register_command(
     rprint(f"  [green]ENS:[/green] {ens_name}")
 
     # Check existing registration
-    existing_id = check_existing_registration(w3, address)
-    if existing_id is not None:
-        rprint(f"  [green]Already registered:[/green] agentId = {existing_id}")
+    if check_existing_registration(w3, address):
+        rprint("  [green]Already registered on ERC-8004[/green]")
         rprint()
         return
 
@@ -80,6 +79,9 @@ async def register_command(
             register_agent, w3, private_key, agent_uri, ens_name
         ),
     )
-    rprint(f"  [green]Registered:[/green] agentId = {agent_id}")
+    agent_url = f"https://8004agents.ai/base/agent/{agent_id}"
+    rprint(
+        f"  [green]Registered:[/green] agentId = [link={agent_url}]{agent_id}[/link]"
+    )
     rprint(f"  [dim]Tx: [link=https://basescan.org/tx/{reg_tx}]{reg_tx}[/link][/dim]")
     rprint()

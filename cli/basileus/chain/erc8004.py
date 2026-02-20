@@ -1,6 +1,7 @@
 """ERC-8004 IdentityRegistry interactions for registering Basileus agents on Base."""
 
 import json
+import warnings
 
 import eth_abi
 from aleph.sdk.chains.ethereum import ETHAccount
@@ -58,19 +59,12 @@ async def upload_metadata_to_ipfs(aleph_account: ETHAccount, metadata: dict) -> 
     return f"ipfs://{cid}"
 
 
-def check_existing_registration(w3: Web3, address: str) -> int | None:
-    """Check if address owns an identity NFT. Returns agentId or None."""
+def check_existing_registration(w3: Web3, address: str) -> bool:
+    """Check if address already owns an ERC-8004 identity NFT."""
     contract = _get_registry(w3)
     checksummed = Web3.to_checksum_address(address)
-
-    try:
-        balance = contract.functions.balanceOf(checksummed).call()
-        if balance == 0:
-            return None
-        agent_id = contract.functions.tokenOfOwnerByIndex(checksummed, 0).call()
-        return agent_id
-    except Exception:
-        return None
+    balance = contract.functions.balanceOf(checksummed).call()
+    return balance > 0
 
 
 def register_agent(
@@ -108,8 +102,11 @@ def register_agent(
     if receipt["status"] != 1:
         raise RuntimeError(f"Transaction reverted: 0x{tx_hash.hex()}")
 
-    # Extract agentId from Registered event
-    registered_events = contract.events.Registered().process_receipt(receipt)
+    # Extract agentId from Registered event (suppress MismatchedABI warnings
+    # from unrelated logs like ERC-721 Transfer/Approval)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*MismatchedABI.*")
+        registered_events = contract.events.Registered().process_receipt(receipt)
     if not registered_events:
         raise RuntimeError(f"No Registered event found in tx 0x{tx_hash.hex()}")
     agent_id = registered_events[0]["args"]["agentId"]

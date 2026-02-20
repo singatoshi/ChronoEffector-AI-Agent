@@ -243,12 +243,9 @@ async def deploy_command(
             _fail("ERC-8004 registration", RuntimeError("ENS label not available"))
         assert label is not None
 
-        existing_agent_id = check_existing_registration(w3, address)
-        if existing_agent_id is not None:
-            rprint(
-                f"  [green]Already registered:[/green] agentId = {existing_agent_id}"
-            )
-            agent_id_display = existing_agent_id
+        already_registered = check_existing_registration(w3, address)
+        if already_registered:
+            rprint("  [green]Already registered on ERC-8004[/green]")
         else:
             ens_name = f"{label}.basileus-agent.eth"
             metadata = build_agent_metadata(label)
@@ -265,12 +262,17 @@ async def deploy_command(
                     register_agent, w3, private_key, agent_uri, ens_name
                 ),
             )
-            rprint(f"  [green]Registered:[/green] agentId = {agent_id}")
+            agent_url = f"https://8004agents.ai/base/agent/{agent_id}"
+            rprint(
+                f"  [green]Registered:[/green] agentId = [link={agent_url}]{agent_id}[/link]"
+            )
             rprint(
                 f"  [dim]Tx: [link=https://basescan.org/tx/{reg_tx}]{reg_tx}[/link][/dim]"
             )
             agent_id_display = agent_id
         rprint()
+
+        await asyncio.sleep(2)
 
         # Create Aleph Cloud instance
         step += 1
@@ -395,7 +397,7 @@ async def deploy_command(
                 f"[bold]Agent Address:[/bold]    [cyan]{address}[/cyan]\n"
                 f"[bold]ENS Name:[/bold]         [cyan]{label}.basileus-agent.eth[/cyan]\n"
                 + (
-                    f"[bold]ERC-8004 ID:[/bold]     {agent_id_display}\n"
+                    f"[bold]ERC-8004 ID:[/bold]     [link=https://8004agents.ai/base/agent/{agent_id_display}]{agent_id_display}[/link]\n"
                     if agent_id_display is not None
                     else ""
                 )

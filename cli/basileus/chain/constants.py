@@ -124,16 +124,6 @@ ERC8004_IDENTITY_REGISTRY_ABI = [
         "type": "function",
     },
     {
-        "inputs": [
-            {"name": "owner", "type": "address"},
-            {"name": "index", "type": "uint256"},
-        ],
-        "name": "tokenOfOwnerByIndex",
-        "outputs": [{"name": "", "type": "uint256"}],
-        "stateMutability": "view",
-        "type": "function",
-    },
-    {
         "anonymous": False,
         "inputs": [
             {"indexed": True, "name": "agentId", "type": "uint256"},
