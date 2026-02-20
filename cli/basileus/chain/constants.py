@@ -9,6 +9,28 @@ BASE_CHAIN_ID = 8453
 USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 USDC_DECIMALS = 6
 
+# WETH on Base
+WETH_ADDRESS = "0x4200000000000000000000000000000000000006"
+
+# ALEPH on Base
+ALEPH_ADDRESS = "0xc0Fbc4967259786C743361a5885ef49380473dCF"
+ALEPH_DECIMALS = 18
+
+# Uniswap V3 SwapRouter on Base
+UNISWAP_ROUTER = "0x2626664c2603336E57B271c5C0b26F421741e481"
+
+# Uniswap V3 ALEPH/WETH pool on Base
+UNISWAP_ALEPH_POOL = "0xe11C66b25F0e9a9eBEf1616B43424CC6E2168FC8"
+
+# Fee tiers
+UNISWAP_FEE_ALEPH = 10000  # 1% for WETH/ALEPH
+UNISWAP_FEE_USDC = 500  # 0.05% for WETH/USDC
+
+# Funding flow
+MIN_ETH_FUNDING = 0.01
+MIN_ETH_RESERVE = 0.001
+TARGET_ALEPH_TOKENS = 10
+
 # Minimal ERC20 ABI for balanceOf
 ERC20_BALANCE_ABI = [
     {
@@ -52,7 +74,7 @@ L2_REGISTRAR_ABI = [
 
 # IPFS content hash (EIP-1577 encoded) — output of `npm run deploy:ipfs` in frontend/
 FRONTEND_CONTENT_HASH = (
-    "0xe301017012209304718dc62f041fb150fc5d6c067ebea5331aca06cb650724276e0727f423e6"
+    "0xe30101701220166670f07c9a6e42f990a9326a8ee4224ef863b89fd17ff21f82a5cd43470125"
 )
 
 # L2Registry on Base (ENS resolver for subnames)
@@ -133,4 +155,48 @@ ERC8004_IDENTITY_REGISTRY_ABI = [
         "name": "Registered",
         "type": "event",
     },
+]
+
+# Uniswap V3 pool ABI (slot0 for price reading)
+UNISWAP_POOL_ABI = [
+    {
+        "inputs": [],
+        "name": "slot0",
+        "outputs": [
+            {"name": "sqrtPriceX96", "type": "uint160"},
+            {"name": "tick", "type": "int24"},
+            {"name": "observationIndex", "type": "uint16"},
+            {"name": "observationCardinality", "type": "uint16"},
+            {"name": "observationCardinalityNext", "type": "uint16"},
+            {"name": "feeProtocol", "type": "uint8"},
+            {"name": "unlocked", "type": "bool"},
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    }
+]
+
+# Uniswap V3 SwapRouter ABI (exactInputSingle)
+UNISWAP_ROUTER_ABI = [
+    {
+        "inputs": [
+            {
+                "components": [
+                    {"name": "tokenIn", "type": "address"},
+                    {"name": "tokenOut", "type": "address"},
+                    {"name": "fee", "type": "uint24"},
+                    {"name": "recipient", "type": "address"},
+                    {"name": "amountIn", "type": "uint256"},
+                    {"name": "amountOutMinimum", "type": "uint256"},
+                    {"name": "sqrtPriceLimitX96", "type": "uint160"},
+                ],
+                "name": "params",
+                "type": "tuple",
+            }
+        ],
+        "name": "exactInputSingle",
+        "outputs": [{"name": "amountOut", "type": "uint256"}],
+        "stateMutability": "payable",
+        "type": "function",
+    }
 ]

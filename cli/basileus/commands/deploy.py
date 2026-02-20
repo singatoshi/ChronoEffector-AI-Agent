@@ -35,9 +35,20 @@ from basileus.chain.superfluid import (
     create_community_flow,
     create_operator_flow,
 )
-from basileus.chain.balance import wait_for_usdc_funding
+from basileus.chain.balance import get_eth_balance, wait_for_eth_funding
+from basileus.chain.swap import (
+    compute_aleph_swap_eth,
+    compute_usdc_swap_eth,
+    swap_eth_to_aleph,
+    swap_eth_to_usdc,
+)
 from basileus.chain.wallet import generate_wallet, load_existing_wallet
-from basileus.chain.constants import BASE_RPC_URL, BUILDER_CODE, FRONTEND_CONTENT_HASH
+from basileus.chain.constants import (
+    BASE_RPC_URL,
+    BUILDER_CODE,
+    FRONTEND_CONTENT_HASH,
+    MIN_ETH_FUNDING,
+)
 from basileus.chain.ens import (
     check_existing_subname,
     check_label_available,
@@ -60,10 +71,10 @@ async def deploy_command(
         None,
         help="Path to agent directory (default: current working directory)",
     ),
-    min_usdc: float = typer.Option(
-        20.0,
-        "--min-usdc",
-        help="Minimum USDC balance to wait for before proceeding",
+    min_eth: float = typer.Option(
+        MIN_ETH_FUNDING,
+        "--min-eth",
+        help="Minimum ETH balance to wait for before proceeding",
     ),
     ssh_pubkey_path: Path = typer.Option(
         None,
@@ -163,21 +174,56 @@ async def deploy_command(
         rprint()
         rprint(
             Panel(
-                f"[bold]Send USDC (Base) to:[/bold]\n\n"
+                f"[bold]Send ETH (Base) to:[/bold]\n\n"
                 f"  [cyan]{address}[/cyan]\n\n"
-                f"This USDC will be the agent's starting funds for:\n"
-                f"  - AI inference costs (BlockRun x402)\n"
-                f"  - Prediction market trading (Limitless)\n"
-                f"  - Compute costs (Aleph Cloud)\n\n"
-                f"[dim]Minimum required: {min_usdc} USDC[/dim]",
+                f"This ETH will be swapped to fund the agent:\n"
+                f"  - ~10 ALEPH for compute (Aleph Cloud)\n"
+                f"  - 0.001 ETH kept for gas\n"
+                f"  - Remainder swapped to USDC\n\n"
+                f"[dim]Minimum required: {min_eth} ETH[/dim]",
                 title="[bold yellow]Fund Agent Wallet[/bold yellow]",
                 border_style="yellow",
             )
         )
         rprint()
 
-        balance = wait_for_usdc_funding(address, min_amount=min_usdc)
-        rprint(f"  [green]Received {balance:.2f} USDC[/green]")
+        eth_balance = wait_for_eth_funding(address, min_amount=min_eth)
+        rprint(f"  [green]Received {eth_balance:.4f} ETH[/green]")
+        rprint()
+
+        # Swap ETH → ALEPH + USDC
+        step += 1
+        rprint(f"[bold]Step {step}:[/bold] Swapping ETH → ALEPH + USDC...")
+        rprint()
+
+        aleph_eth = await _run_step(
+            "Computing ALEPH swap amount",
+            fn=lambda: compute_aleph_swap_eth(w3),
+        )
+        rprint(f"  [dim]Swapping {aleph_eth:.4f} ETH for ~10 ALEPH[/dim]")
+
+        aleph_tx = await _run_step(
+            "Swapping ETH → ALEPH",
+            fn=lambda: swap_eth_to_aleph(w3, private_key, aleph_eth),
+        )
+        rprint(
+            f"  [dim]Tx: [link=https://basescan.org/tx/{aleph_tx}]{aleph_tx}[/link][/dim]"
+        )
+
+        await asyncio.sleep(2)
+
+        # Swap remaining ETH → USDC (keep MIN_ETH_RESERVE for gas)
+        current_eth = get_eth_balance(w3, address)
+        usdc_eth = compute_usdc_swap_eth(current_eth)
+        if usdc_eth > 0:
+            rprint(f"  [dim]Swapping {usdc_eth:.4f} ETH for USDC[/dim]")
+            usdc_tx = await _run_step(
+                "Swapping ETH → USDC",
+                fn=lambda: swap_eth_to_usdc(w3, private_key, usdc_eth),
+            )
+            rprint(
+                f"  [dim]Tx: [link=https://basescan.org/tx/{usdc_tx}]{usdc_tx}[/link][/dim]"
+            )
         rprint()
 
         # Register ENS subname (if needed)
@@ -284,9 +330,6 @@ async def deploy_command(
             ssh_pubkey = ssh_pubkey_path.expanduser().read_text().strip()
         else:
             ssh_pubkey = get_user_ssh_pubkey()
-
-        # Skip swap — assume ALEPH tokens already available
-        console.print("  [dim]Skipping ALEPH swap (assuming tokens available)[/dim]")
 
         try:
             aleph_balance = check_aleph_balance(account)
@@ -401,7 +444,7 @@ async def deploy_command(
                     if agent_id_display is not None
                     else ""
                 )
-                + f"[bold]USDC Balance:[/bold]     {balance:.2f} USDC\n"
+                + f"[bold]ETH Balance:[/bold]      {get_eth_balance(w3, address):.4f} ETH\n"
                 f"[bold]Instance IP:[/bold]      {instance_ip}\n"
                 f"[bold]Network:[/bold]          Base Mainnet\n"
                 f"[bold]Service:[/bold]          [green]basileus-agent (active)[/green]\n"
