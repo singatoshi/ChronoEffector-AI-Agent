@@ -10,6 +10,7 @@ export const COMPOUND_COMET = "0xb125E6687d4313864e53df431d5425969c15Eb2F" as co
 export const LIMITLESS = "0x05c748e2f4dcde0ec9fa8ddc40de6b867f923fa5" as const;
 export const CONDITIONAL_TOKENS = "0xC9c98965297Bc527861c898329Ee280632B76e18" as const;
 export const LIMITLESS_BATCH = "0xc9c1f17e8488b5E12AB19E0B63d8C1eFD0D9ae18" as const;
+export const ERC8004_IDENTITY_REGISTRY = "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as const;
 
 // Block where L2Registrar was deployed
 export const L2_REGISTRAR_DEPLOY_BLOCK = 42102582n;

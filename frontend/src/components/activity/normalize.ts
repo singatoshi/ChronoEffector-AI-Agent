@@ -12,6 +12,7 @@ import {
   LIMITLESS,
   CONDITIONAL_TOKENS,
   LIMITLESS_BATCH,
+  ERC8004_IDENTITY_REGISTRY,
 } from "../../lib/contracts";
 import { formatAmount, formatWeiValue } from "../../lib/format";
 import { USDC_DECIMALS } from "../../lib/contracts";
@@ -77,6 +78,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   const isCompound = toAddr === COMPOUND_COMET.toLowerCase();
   const isLimitless = toAddr === LIMITLESS.toLowerCase();
   const isConditionalTokens = toAddr === CONDITIONAL_TOKENS.toLowerCase();
+  const isERC8004 = toAddr === ERC8004_IDENTITY_REGISTRY.toLowerCase();
 
   // For approve txs, check if spender is a known protocol
   const spender =
@@ -90,6 +92,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
   if (isSuperfluid && tx.method === "createFlow") label = "Start ALEPH stream";
   else if (isSuperfluid && tx.method === "deleteFlow") label = "Stop ALEPH stream";
   else if (isSuperfluid && tx.method === "updateFlow") label = "Update ALEPH stream";
+  else if (isERC8004 && tx.method === "register") label = "Register agent (ERC-8004)";
   else if (isRegistrar && tx.method === "register") label = "Register ENS name";
   else if (isRegistry && tx.method === "setContenthash") label = "Set ENS content hash";
   else if (isCompound) {
@@ -108,6 +111,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
 
   const hasCustomLabel =
     isSuperfluid ||
+    isERC8004 ||
     isRegistrar ||
     isRegistry ||
     isCompound ||
@@ -119,6 +123,7 @@ export function normalizeTx(tx: BlockscoutTx, agentAddress: string): NormalizedT
 
   let icon: IconType;
   if (isSuperfluid) icon = { kind: "img", src: "/icons/aleph.png", alt: "ALEPH" };
+  else if (isERC8004) icon = { kind: "img", src: "/icons/erc8004.png", alt: "ERC-8004" };
   else if (isRegistrar || isRegistry) icon = { kind: "img", src: "/icons/ens.jpg", alt: "ENS" };
   else if (isCompound || isApproveForCompound)
     icon = { kind: "img", src: "/icons/compound.png", alt: "Compound" };
