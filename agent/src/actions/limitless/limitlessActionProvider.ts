@@ -297,19 +297,12 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
             marketSlug: args.marketSlug,
           });
 
-          return JSON.stringify(
-            {
-              status: "filled",
-              orderId: res.order.id,
-              side: args.side,
-              usdcSpent: fmtShares(res.order.makerAmount),
-              sharesReceived: fmtShares(res.order.takerAmount),
-              matches: res.makerMatches?.length ?? 0,
-              market: args.marketSlug,
-            },
-            null,
-            2,
-          );
+          return JSON.stringify({
+            orderId: res.order.id,
+            side: args.side,
+            usdcSpent: fmtShares(res.order.makerAmount),
+            sharesReceived: Number(res.order.takerAmount),
+          });
         } catch (err) {
           return `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
@@ -399,32 +392,23 @@ export function createLimitlessActionProvider(apiKey: string, privateKey: string
           const pos = await clients.portfolioFetcher.getPositions();
 
           const clob = pos.clob.map((p) => ({
-            market: p.market.title,
             slug: p.market.slug,
             closed: p.market.closed,
-            yesShares: fmtShares(p.tokensBalance.yes),
-            noShares: fmtShares(p.tokensBalance.no),
-            yesUnrealizedPnl: fmtShares(p.positions.yes.unrealizedPnl),
-            noUnrealizedPnl: fmtShares(p.positions.no.unrealizedPnl),
-            latestYesPrice: p.latestTrade?.latestYesPrice ?? null,
-            latestNoPrice: p.latestTrade?.latestNoPrice ?? null,
+            yes: fmtShares(p.tokensBalance.yes),
+            no: fmtShares(p.tokensBalance.no),
+            yesPnl: fmtShares(p.positions.yes.unrealizedPnl),
+            noPnl: fmtShares(p.positions.no.unrealizedPnl),
           }));
 
           const amm = pos.amm.map((p) => ({
-            market: p.market.title,
             slug: p.market.slug,
             closed: p.market.closed,
             side: p.outcomeIndex === 0 ? "YES" : "NO",
             shares: fmtShares(p.outcomeTokenAmount),
-            unrealizedPnl: fmtShares(p.unrealizedPnl),
-            avgPrice: p.averageFillPrice,
+            pnl: fmtShares(p.unrealizedPnl),
           }));
 
-          return JSON.stringify(
-            { clob, amm, totalClob: clob.length, totalAmm: amm.length },
-            null,
-            2,
-          );
+          return JSON.stringify({ clob, amm });
         } catch (err) {
           return `Error: ${err instanceof Error ? err.message : String(err)}`;
         }
