@@ -37,8 +37,9 @@ Then evaluate:
 
 IMPORTANT: Only use IDLE USDC (wallet balance) for health checks. Compound USDC is locked and requires a withdrawal tx — do NOT count it as available.
 
-If UNHEALTHY (idle USDC < ${config.usdcSurvivalThreshold}): call trigger_survival with what's wrong + all balances.
-If HEALTHY: calculate excess = idle USDC - ${config.usdcIdleTarget}. If excess > 0, call trigger_strategy with excess amount + balances. The idle target (${config.usdcIdleTarget}) is higher than the survival threshold (${config.usdcSurvivalThreshold}) to leave a buffer for operational costs between cycles. Report Compound balance in the trigger so strategy/survival can decide whether to withdraw.
+Decision (pick exactly one):
+1. If UNHEALTHY (idle USDC < ${config.usdcSurvivalThreshold}): call trigger_survival with what's wrong + all balances.
+2. Otherwise call trigger_strategy with idle USDC, Compound balance, and all balances. Strategy will decide whether to withdraw from Compound and/or trade. The idle target (${config.usdcIdleTarget}) is higher than the survival threshold (${config.usdcSurvivalThreshold}) to leave a buffer for operational costs between cycles.
 
 Be concise. Think step by step.`;
 
