@@ -74,7 +74,7 @@ L2_REGISTRAR_ABI = [
 
 # IPFS content hash (EIP-1577 encoded) — output of `npm run deploy:ipfs` in frontend/
 FRONTEND_CONTENT_HASH = (
-    "0xe30101701220166670f07c9a6e42f990a9326a8ee4224ef863b89fd17ff21f82a5cd43470125"
+    "0xe301017012200431fc3aa9b7077eca14008ce44d907af02fa90cc83f7c9ff249a04e9b79bfd2"
 )
 
 # L2Registry on Base (ENS resolver for subnames)

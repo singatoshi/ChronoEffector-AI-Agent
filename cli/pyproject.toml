@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "basileus"
-version = "0.1.0"
-description = "CLI for deploying Basileus autonomous prediction market agents"
+version = "0.1.1"
+description = "CLI for deploying Basileus autonomous AI Agents"
 authors = ["Basileus Team"]
 readme = "README.md"
 packages = [{ include = "basileus" }]
