@@ -89,15 +89,4 @@ Reference autonomous agent implementation. Configurable cycle timing, capital th
 | ENS `L2Registry`  | [`0x2e84f843299a132103e110c948c5e4739682c961`](https://basescan.org/address/0x2e84f843299a132103e110c948c5e4739682c961) |
 | ENS `L2Registrar` | [`0xBb3699a3018A8a82A94be194eCfe65512AD8E995`](https://basescan.org/address/0xBb3699a3018A8a82A94be194eCfe65512AD8E995) |
 
-## ETHDenver 2026
 
-Built at the [ETHDenver 2026 hackathon](https://devfolio.co/projects/basileus-68f2).
-
-<div align="center">
-  <h2>Made with ❤️ by</h2>
-  <a href="https://github.com/RezaRahemtola">
-    <img src="https://github.com/RezaRahemtola.png?size=85" width=85/>
-    <br>
-    <span>Reza Rahemtola</span>
-  </a>
-</div>
